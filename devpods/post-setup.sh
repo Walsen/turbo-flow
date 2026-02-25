@@ -118,7 +118,10 @@ else
 fi
 
 # sql.js (for memory database WASM fallback)
-if npm list -g sql.js --depth=0 >/dev/null 2>&1 || npm list sql.js --depth=0 >/dev/null 2>&1; then
+# Check: global, local project, or available via require.resolve (transitive dependency)
+if npm list -g sql.js --depth=0 >/dev/null 2>&1 || \
+   npm list sql.js --depth=0 >/dev/null 2>&1 || \
+   node -e "require.resolve('sql.js')" >/dev/null 2>&1; then
     success "sql.js: installed (memory database)"
 else
     warning "sql.js not installed (memory database may fail)"
