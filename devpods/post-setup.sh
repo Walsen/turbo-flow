@@ -119,12 +119,45 @@ fi
 
 # sql.js (for memory database WASM fallback)
 # Check: global, local project, or available via require.resolve (transitive dependency)
-if npm list -g sql.js --depth=0 >/dev/null 2>&1 || \
-   npm list sql.js --depth=0 >/dev/null 2>&1 || \
-   node -e "require.resolve('sql.js')" >/dev/null 2>&1; then
-    success "sql.js: installed (memory database)"
-else
-    warning "sql.js not installed (memory database may fail)"
+SQLJS_INSTALLED=false
+
+# Check global
+if npm list -g sql.js --depth=0 >/dev/null 2>&1; then
+    SQLJS_INSTALLED=true
+    success "sql.js: installed globally (memory database)"
+fi
+
+# Check local project (from workspace folder)
+if [ "$SQLJS_INSTALLED" = false ] && [ -f "$WORKSPACE_FOLDER/package.json" ]; then
+    cd "$WORKSPACE_FOLDER" 2>/dev/null || true
+    if npm list sql.js --depth=0 >/dev/null 2>&1; then
+        SQLJS_INSTALLED=true
+        success "sql.js: installed locally (memory database)"
+    fi
+fi
+
+# Check via require.resolve (from workspace folder)
+if [ "$SQLJS_INSTALLED" = false ] && [ -f "$WORKSPACE_FOLDER/package.json" ]; then
+    cd "$WORKSPACE_FOLDER" 2>/dev/null || true
+    if node -e "require.resolve('sql.js')" >/dev/null 2>&1; then
+        SQLJS_INSTALLED=true
+        success "sql.js: available via require (memory database)"
+    fi
+fi
+
+# If still not installed, try to install it now
+if [ "$SQLJS_INSTALLED" = false ]; then
+    info "Installing sql.js for memory database..."
+    if [ -f "$WORKSPACE_FOLDER/package.json" ]; then
+        cd "$WORKSPACE_FOLDER" 2>/dev/null || true
+        if npm install sql.js --save-dev 2>/dev/null; then
+            success "sql.js: installed locally (memory database)"
+        else
+            warning "sql.js not installed (memory database may fail)"
+        fi
+    else
+        warning "sql.js not installed (memory database may fail) - no package.json"
+    fi
 fi
 
 echo ""
