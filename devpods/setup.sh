@@ -124,7 +124,7 @@ else
 fi
 
 # Ruflo (THE orchestration layer)
-npx ruflo@latest init >> "$LOG" 2>&1 || true
+npx ruflo@latest init --wizard 2>/dev/null || npx ruflo@latest init >> "$LOG" 2>&1
 ok "Ruflo v3.5 initialized (includes RuVector, AgentDB, SONA, skills, browser, observability)"
 
 # Register Ruflo as MCP server for Claude Code
@@ -154,21 +154,23 @@ install_plugin() {
 
     if [ -d "$plugin_dir" ] && [ -f "$plugin_dir/package.json" ]; then
         ok "$plugin_name already installed"
-        ((PLUGINS_INSTALLED++))
+        # FIX: Use pre-increment to avoid returning 0 (false) in arithmetic context
+        ((++PLUGINS_INSTALLED))
         return 0
     fi
 
     if npx ruflo@latest plugins install -n "$plugin_name" >> "$LOG" 2>&1; then
         ok "$plugin_name installed"
-        ((PLUGINS_INSTALLED++))
+        ((++PLUGINS_INSTALLED))
         return 0
     elif npx ruflo@latest plugins install --name "$plugin_name" >> "$LOG" 2>&1; then
         ok "$plugin_name installed (--name flag)"
-        ((PLUGINS_INSTALLED++))
+        ((++PLUGINS_INSTALLED))
         return 0
     else
         warn "$plugin_name failed (optional)"
-        return 1
+        # FIX: Return 0 so 'set -e' doesn't crash the script on optional failures
+        return 0
     fi
 }
 
