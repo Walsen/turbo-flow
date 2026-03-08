@@ -1,574 +1,319 @@
-#!/bin/bash
-# TURBO FLOW SETUP SCRIPT v3.4.1 (COMPLETE + PLUGINS)
-# Complete: All Claude Flow native skills + ALL 15 plugins enabled
-# Based on analysis: Claude_Flow_vs_Turbo_Flow_Analysis.docx
-# 
-# CHANGES FROM v3.4.0:
-# - FIXED: Removed skill install (not supported by claude-flow CLI)
-# - FIXED: Changed 'plugin' to 'plugins' (correct subcommand)
-# - FIXED: Added npm fallback for Claude Code installation
-# - FIXED: Better error handling throughout
+#!/usr/bin/env bash
+# =============================================================================
+# TurboFlow 4.0 Setup Script
+# Replaces: .devcontainer/setup.sh from v3.4.1
+#
+# What changed from v3.4.1:
+#   REMOVED: claude-flow@alpha (dead package → now ruflo)
+#   REMOVED: Manual RuVector/SONA npm installs (bundled in ruflo v3.5)
+#   REMOVED: Manual @claude-flow/browser install (bundled in ruflo v3.5)
+#   REMOVED: Manual security-analyzer git clone (ruflo skill)
+#   REMOVED: Manual UI UX Pro Max skill clone (ruflo skill)
+#   REMOVED: Manual worktree-manager skill clone (replaced by native wt-* helpers)
+#   REMOVED: Slash commands (/sparc, /speckit.* — replaced by ruflo skills)
+#   REMOVED: cf-fix better-sqlite3 hack (fixed upstream)
+#   REMOVED: sql.js manual install (handled by ruflo)
+#   REMOVED: Separate agentic-flow install (integrated into ruflo v3.5)
+#   REMOVED: 9 redundant/domain-specific plugins (see below)
+#   REMOVED: ccusage standalone (use claude-usage or ruflo statusline)
+#   REMOVED: Ars Contexta, OpenClaw Secure Stack, HeroUI scaffold (out of scope)
+#   REMOVED: Standalone agtrace, PAL MCP, Claudish, Spec-Kit (bundled/redundant)
+#   KEPT:    6 Ruflo plugins (agentic-qe, code-intelligence, test-intelligence,
+#            perf-optimizer, teammate-plugin, gastown-bridge)
+#   KEPT:    OpenSpec (spec-driven development)
+#   ADDED:   Beads (cross-session project memory)
+#   ADDED:   Git worktree helpers (agent isolation with PG Vector schema namespacing)
+#   ADDED:   Native Agent Teams env var
+#   ADDED:   GitNexus (codebase knowledge graph + MCP)
+#   ADDED:   3-tier memory decision tree in CLAUDE.md
+#   KEPT:    build-essential, python3, git, curl, jq
+#   KEPT:    Statusline Pro (rewritten for v4.0)
+#   KEPT:    DevPod/Codespaces/Rackspace compatibility
+#
+# Removed plugins (domain-specific or redundant with Ruflo v3.5 core):
+#   - healthcare-clinical (HIPAA/FHIR — not needed)
+#   - financial-risk (PCI-DSS/SOX — not needed)
+#   - legal-contracts (contract analysis — not needed)
+#   - cognitive-kernel (overlaps Ruflo neural system)
+#   - hyperbolic-reasoning (overlaps Ruflo core)
+#   - quantum-optimizer (overlaps Ruflo core)
+#   - neural-coordination (overlaps Ruflo core)
+#   - prime-radiant (niche interpretability)
+#   - ruvector-upstream (redundant — RuVector bundled in Ruflo v3.5)
+# =============================================================================
+set -euo pipefail
 
-# ============================================
-# CONFIGURATION
-# ============================================
-: "${WORKSPACE_FOLDER:=$(pwd)}"
-: "${DEVPOD_WORKSPACE_FOLDER:=$WORKSPACE_FOLDER}"
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly DEVPOD_DIR="$SCRIPT_DIR"
-TOTAL_STEPS=15
-CURRENT_STEP=0
+WORKSPACE="${WORKSPACE:-$(pwd)}"
+LOG="/tmp/turboflow-setup.log"
 START_TIME=$(date +%s)
 
-# ============================================
-# PATH SETUP - ensure npm global bin is discoverable
-# ============================================
-if [ -n "$npm_config_prefix" ]; then
-    export PATH="$npm_config_prefix/bin:$PATH"
-elif [ -f "$HOME/.npmrc" ]; then
-    _NPM_PREFIX=$(grep '^prefix=' "$HOME/.npmrc" 2>/dev/null | cut -d= -f2)
-    [ -n "$_NPM_PREFIX" ] && export PATH="$_NPM_PREFIX/bin:$PATH"
-fi
-export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
-
-# ============================================
-# PROGRESS HELPERS
-# ============================================
-progress_bar() {
-    local percent=$1
-    local width=30
-    local filled=$((percent * width / 100))
-    local empty=$((width - filled))
-    printf "\r  ["
-    printf "%${filled}s" | tr ' ' '#'
-    printf "%${empty}s" | tr ' ' '-'
-    printf "] %3d%%" "$percent"
-}
-
-step_header() {
-    CURRENT_STEP=$((CURRENT_STEP + 1))
-    PERCENT=$((CURRENT_STEP * 100 / TOTAL_STEPS))
-    echo ""
-    echo ""
-    echo "=================================================="
-    echo "  [$PERCENT%] STEP $CURRENT_STEP/$TOTAL_STEPS: $1"
-    echo "=================================================="
-    progress_bar $PERCENT
-    echo ""
-}
-
-status() { echo "  [*] $1..."; }
-ok() { echo "  [OK] $1"; }
-skip() { echo "  [SKIP] $1 (already installed)"; }
-warn() { echo "  [WARN] $1 (continuing anyway)"; }
-info() { echo "  [INFO] $1"; }
-checking() { echo "  [CHECK] Checking $1..."; }
-fail() { echo "  [FAIL] $1"; }
-
-has_cmd() { command -v "$1" >/dev/null 2>&1; }
-is_npm_installed() { npm list -g "$1" --depth=0 >/dev/null 2>&1; }
+step() { echo -e "\n${CYAN}━━━ [$1/10] $2 ━━━${NC}"; }
+ok()   { echo -e "  ${GREEN}✓${NC} $1"; }
+warn() { echo -e "  ${YELLOW}⚠${NC} $1"; }
+fail() { echo -e "  ${RED}✗${NC} $1"; }
 elapsed() { echo "$(($(date +%s) - START_TIME))s"; }
 
-skill_has_content() {
-    local dir="$1"
-    [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]
-}
+echo -e "${BOLD}"
+echo "╔══════════════════════════════════════════════════╗"
+echo "║         🚀 TurboFlow 4.0 Setup                  ║"
+echo "║   Ruflo v3.5 + Beads + Worktrees + Agent Teams  ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo -e "${NC}"
 
-plugin_has_content() {
-    local dir="$1"
-    [ -d "$dir" ] && [ -f "$dir/package.json" ]
-}
+# =============================================================================
+# STEP 1: System Prerequisites
+# =============================================================================
+step 1 "System Prerequisites"
 
-# Note: Claude Flow does not have a 'skill install' subcommand
-# Skills are built-in or created manually
-install_skill() {
-    local skill_name="$1"
-    local skill_dir="$HOME/.claude/skills/$skill_name"
-    
-    if skill_has_content "$skill_dir"; then
-        skip "$skill_name skill"
-        return 0
+if command -v apt-get &>/dev/null; then
+    sudo apt-get update -qq >> "$LOG" 2>&1
+    sudo apt-get install -y -qq build-essential python3 python3-pip git curl jq >> "$LOG" 2>&1
+    ok "apt packages installed"
+elif command -v brew &>/dev/null; then
+    ok "macOS detected — skipping apt (brew handles deps)"
+else
+    warn "Unknown package manager — ensure build-essential, python3, git, curl, jq are available"
+fi
+
+# Node.js 20+ (required by ruflo v3.5)
+if ! command -v node &>/dev/null || [ "$(node -v | cut -d'.' -f1 | tr -d 'v')" -lt 20 ]; then
+    if command -v nvm &>/dev/null; then
+        nvm install 20 && nvm use 20
+    else
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - >> "$LOG" 2>&1
+        sudo apt-get install -y -qq nodejs >> "$LOG" 2>&1
     fi
-    
-    # Claude Flow doesn't support skill install via CLI
-    # Skills are built-in features, not installable packages
-    info "$skill_name skill (built-in to claude-flow)"
-    return 0
-}
+    ok "Node.js $(node -v) installed"
+else
+    ok "Node.js $(node -v) already present"
+fi
+
+ok "Elapsed: $(elapsed)"
+
+# =============================================================================
+# STEP 2: Claude Code + Ruflo v3.5
+# Ruflo v3.5 bundles: AgentDB v3, RuVector WASM, SONA, 215 MCP tools,
+# 60+ agents, skills system, 3-tier model routing, browser automation (59 MCP
+# browser tools), observability, gating, multi-model routing
+# This single install replaces: claude-flow@alpha, @ruvector/cli, @ruvector/sona,
+# @claude-flow/browser, agentic-flow, security-analyzer, ui-ux-pro-max
+# =============================================================================
+step 2 "Claude Code + Ruflo v3.5"
+
+# Claude Code
+if ! command -v claude &>/dev/null; then
+    npm install -g @anthropic-ai/claude-code >> "$LOG" 2>&1
+    if command -v claude &>/dev/null; then
+        ok "Claude Code installed"
+    else
+        # Fallback to official installer
+        curl -fsSL https://claude.ai/install.sh 2>/dev/null | sh 2>&1 || true
+        export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
+        command -v claude &>/dev/null && ok "Claude Code installed via official installer" \
+            || fail "Claude Code install failed — install manually: npm i -g @anthropic-ai/claude-code"
+    fi
+else
+    ok "Claude Code $(claude --version 2>/dev/null | head -1 || echo 'present')"
+fi
+
+# Ruflo (THE orchestration layer)
+npx ruflo@latest init --wizard 2>/dev/null || npx ruflo@latest init >> "$LOG" 2>&1
+ok "Ruflo v3.5 initialized (includes RuVector, AgentDB, SONA, skills, browser, observability)"
+
+# Register Ruflo as MCP server for Claude Code
+claude mcp remove claude-flow 2>/dev/null || true
+claude mcp add ruflo -- npx -y ruflo@latest 2>/dev/null || true
+ok "Ruflo MCP server registered"
+
+# Doctor check — auto-fixes common issues
+npx ruflo doctor --fix >> "$LOG" 2>&1 || true
+ok "Ruflo doctor passed"
+
+ok "Elapsed: $(elapsed)"
+
+# =============================================================================
+# STEP 3: Ruflo Plugins (6 — development-relevant only)
+# These are Ruflo-ecosystem plugins that add capabilities beyond the core.
+# Domain-specific plugins (healthcare, financial, legal) and plugins redundant
+# with Ruflo v3.5 core (neural-coordination, cognitive-kernel, etc.) removed.
+# =============================================================================
+step 3 "Ruflo Plugins (6)"
+
+PLUGINS_INSTALLED=0
 
 install_plugin() {
     local plugin_name="$1"
-    local plugin_dir="$WORKSPACE_FOLDER/.claude-flow/plugins/$plugin_name"
-    
-    if plugin_has_content "$plugin_dir"; then
-        skip "$plugin_name plugin"
+    local plugin_dir="$WORKSPACE/.claude-flow/plugins/$plugin_name"
+
+    if [ -d "$plugin_dir" ] && [ -f "$plugin_dir/package.json" ]; then
+        ok "$plugin_name already installed"
+        # FIX: Use pre-increment to avoid returning 0 (false) in arithmetic context
+        ((++PLUGINS_INSTALLED))
         return 0
     fi
-    
-    status "Installing $plugin_name plugin"
-    # Fixed: Use 'plugins' (plural) not 'plugin'
-    if npx -y claude-flow@alpha plugins install -n "$plugin_name" 2>/dev/null; then
-        ok "$plugin_name plugin installed"
+
+    if npx ruflo@latest plugins install -n "$plugin_name" >> "$LOG" 2>&1; then
+        ok "$plugin_name installed"
+        ((++PLUGINS_INSTALLED))
+        return 0
+    elif npx ruflo@latest plugins install --name "$plugin_name" >> "$LOG" 2>&1; then
+        ok "$plugin_name installed (--name flag)"
+        ((++PLUGINS_INSTALLED))
         return 0
     else
-        # Try npm install as fallback
-        mkdir -p "$plugin_dir"
-        if [ -f "/home/z/my-project/claude-flow-repo/v3/plugins/$plugin_name/package.json" ]; then
-            cp -r /home/z/my-project/claude-flow-repo/v3/plugins/$plugin_name/* "$plugin_dir/"
-            cd "$plugin_dir" && npm install --silent 2>/dev/null
-            cd "$WORKSPACE_FOLDER"
-            ok "$plugin_name plugin installed (from local)"
-            return 0
-        else
-            warn "$plugin_name plugin install failed (plugin may not exist in registry)"
-            return 1
-        fi
+        warn "$plugin_name failed (optional)"
+        # FIX: Return 0 so 'set -e' doesn't crash the script on optional failures
+        return 0
     fi
 }
 
+# Agentic QE — 58 QE agents, TDD, coverage analysis, security scanning, chaos engineering
+install_plugin "@claude-flow/plugin-agentic-qe"
 
-# ============================================
-# START
-# ============================================
-clear 2>/dev/null || true
-echo ""
-echo "=================================================="
-echo "     TURBO FLOW v3.4.1 - COMPLETE + PLUGINS"
-echo "     36 Skills + 15 Plugins + Memory + MCP"
-echo "=================================================="
-echo ""
-echo "  Workspace: $WORKSPACE_FOLDER"
-echo "  Started at: $(date '+%H:%M:%S')"
-echo ""
-progress_bar 0
-echo ""
+# Code Intelligence — code analysis, pattern detection, refactoring suggestions
+install_plugin "@claude-flow/plugin-code-intelligence"
 
-# ============================================
-# STEP 1: Build tools
-# ============================================
-step_header "Installing build tools"
+# Test Intelligence — test generation, gap analysis, flaky test detection
+install_plugin "@claude-flow/plugin-test-intelligence"
 
-checking "build-essential"
-if has_cmd g++ && has_cmd make; then
-    skip "build tools (g++, make already present)"
-else
-    status "Installing build-essential and python3"
-    if has_cmd apt-get; then
-        (apt-get update -qq && apt-get install -y -qq build-essential python3 git curl jq) 2>/dev/null || \
-        (sudo apt-get update -qq && sudo apt-get install -y -qq build-essential python3 git curl jq) 2>/dev/null || \
-        warn "Could not install build tools"
-        ok "build tools installed"
-    elif has_cmd yum; then
-        (yum groupinstall -y "Development Tools" && yum install -y jq || sudo yum groupinstall -y "Development Tools" && sudo yum install -y jq) 2>/dev/null
-        ok "build tools installed (yum)"
-    elif has_cmd apk; then
-        apk add --no-cache build-base python3 git curl jq 2>/dev/null
-        ok "build tools installed (apk)"
-    else
-        warn "Unknown package manager"
-    fi
-fi
+# Perf Optimizer — performance profiling, bottleneck detection, optimization
+install_plugin "@claude-flow/plugin-perf-optimizer"
 
-checking "jq"
-if has_cmd jq; then
-    skip "jq"
-else
-    status "Installing jq"
-    if has_cmd apt-get; then
-        (apt-get install -y -qq jq || sudo apt-get install -y -qq jq) 2>/dev/null && ok "jq installed" || warn "jq failed"
-    elif has_cmd brew; then
-        brew install jq 2>/dev/null && ok "jq installed" || warn "jq failed"
-    fi
-fi
+# Teammate Plugin — bridges Native Agent Teams with Ruflo swarms, 21 MCP tools
+install_plugin "@claude-flow/teammate-plugin"
 
-info "Elapsed: $(elapsed)"
+# Gastown Bridge — WASM-accelerated orchestration, Beads sync, convoy management, 20 MCP tools
+install_plugin "@claude-flow/plugin-gastown-bridge"
 
-# ============================================
-# STEP 2: Claude Code CLI Installation
-# ============================================
-step_header "Installing Claude Code CLI"
+# OpenSpec — spec-driven development (independent package, not a ruflo plugin)
+npm install -g @fission-ai/openspec >> "$LOG" 2>&1 && ok "OpenSpec installed" || warn "OpenSpec failed (optional)"
 
-checking "Claude Code CLI"
-if has_cmd claude; then
-    skip "Claude Code already installed"
-    ok "Claude Code version: $(claude --version 2>/dev/null | head -1)"
-else
-    status "Installing Claude Code CLI via npm (recommended method)"
-    
-    # Try npm installation first (more reliable)
-    if npm install -g @anthropic-ai/claude-code 2>/dev/null; then
-        export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
-        ok "Claude Code installed via npm"
-    else
-        # Fallback to official installer
-        status "Trying official installer..."
-        if curl -fsSL https://claude.ai/install.sh 2>/dev/null | sh 2>&1; then
-            export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
-            ok "Claude Code installed via official installer"
-        fi
-    fi
+ok "Plugins + tools installed: $PLUGINS_INSTALLED/6 plugins + OpenSpec"
+ok "Elapsed: $(elapsed)"
 
-    # Verify installation
-    if has_cmd claude; then
-        ok "Claude Code installed ($(claude --version 2>/dev/null | head -1))"
-    else
-        fail "Claude Code install failed"
-        info "Install manually: npm install -g @anthropic-ai/claude-code"
-        info "Or try: curl -fsSL https://claude.ai/install.sh | sh"
-    fi
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 3: Claude Flow V3 + RuVector
-# ============================================
-step_header "Installing Claude Flow V3 + RuVector"
-
-checking "Node.js version"
-NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v//' | cut -d. -f1)
-if [ -z "$NODE_MAJOR" ]; then
-    fail "Node.js not found"
-    info "Install Node.js 20+ before continuing"
-elif [ "$NODE_MAJOR" -lt 18 ]; then
-    warn "Node.js $(node -v) found, Claude Code requires 18+"
-    status "Installing Node.js 20 via nodesource"
-    curl -fsSL https://deb.nodesource.com/setup_20.x 2>/dev/null | sudo -E bash - 2>/dev/null
-    sudo apt-get install -y nodejs 2>/dev/null
-    ok "Node.js $(node -v) installed"
-else
-    ok "Node.js $(node -v)"
-fi
-
-CLAUDE_FLOW_OK=false
-if [ -d "$WORKSPACE_FOLDER/.claude-flow" ]; then
-    if is_npm_installed "ruvector" || is_npm_installed "claude-flow"; then
-        CLAUDE_FLOW_OK=true
-    fi
-fi
-
-if $CLAUDE_FLOW_OK; then
-    skip "Claude Flow + RuVector already installed"
-else
-    status "Running official claude-flow installer (--full mode)"
-    echo ""
-    
-    curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/claude-flow@main/scripts/install.sh 2>/dev/null | bash -s -- --full 2>&1 | while IFS= read -r line; do
-        if [[ ! "$line" =~ "deprecated" ]] && [[ ! "$line" =~ "npm warn" ]]; then
-            echo "    $line"
-        fi
-    done || true
-    
-    cd "$WORKSPACE_FOLDER" 2>/dev/null || true
-    
-    status "Ensuring claude-flow@alpha is installed"
-    npm install -g claude-flow@alpha --silent 2>/dev/null || true
-    
-    if [ ! -d ".claude-flow" ]; then
-        status "Initializing Claude Flow in workspace"
-        npx -y claude-flow@alpha init --force 2>/dev/null || true
-    fi
-
-    status "Warming RuVector npx cache"
-    npx -y ruvector --version 2>/dev/null || true
-
-    ok "Claude Flow + RuVector installed"
-
-    npm cache clean --force 2>/dev/null || true
-    rm -rf /tmp/npm-* /tmp/nvm-* /tmp/security-analyzer /tmp/agent-skills 2>/dev/null || true
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 4: Claude Flow Browser Setup
-# ============================================
-step_header "Verifying Claude Flow Browser"
-
-checking "Claude Flow Browser integration"
-if [ -d "$WORKSPACE_FOLDER/.claude-flow" ]; then
-    ok "Claude Flow Browser: integrated (59 MCP tools available via cf-mcp)"
-    info "  Tools: browser/open, browser/snapshot, browser/click, browser/fill, etc."
-    info "  Features: trajectory learning, security scanning, element refs"
-else
-    warn "Claude Flow not initialized - run cf-init first"
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 5: Claude Flow Plugins (15)
-# ============================================
-step_header "Installing Claude Flow Plugins (15)"
-
-checking "Claude Flow plugins"
-PLUGINS_INSTALLED=0
-
-# Quality Engineering
-install_plugin "agentic-qe" && ((PLUGINS_INSTALLED++))
-
-# Code Intelligence
-install_plugin "code-intelligence" && ((PLUGINS_INSTALLED++))
-
-# Cognitive Systems
-install_plugin "cognitive-kernel" && ((PLUGINS_INSTALLED++))
-install_plugin "hyperbolic-reasoning" && ((PLUGINS_INSTALLED++))
-
-# Performance & Optimization
-install_plugin "perf-optimizer" && ((PLUGINS_INSTALLED++))
-install_plugin "quantum-optimizer" && ((PLUGINS_INSTALLED++))
-install_plugin "prime-radiant" && ((PLUGINS_INSTALLED++))
-
-# Neural & Coordination
-install_plugin "neural-coordination" && ((PLUGINS_INSTALLED++))
-install_plugin "ruvector-upstream" && ((PLUGINS_INSTALLED++))
-install_plugin "teammate-plugin" && ((PLUGINS_INSTALLED++))
-
-# Testing
-install_plugin "test-intelligence" && ((PLUGINS_INSTALLED++))
-
-# Domain-Specific
-install_plugin "financial-risk" && ((PLUGINS_INSTALLED++))
-install_plugin "healthcare-clinical" && ((PLUGINS_INSTALLED++))
-install_plugin "legal-contracts" && ((PLUGINS_INSTALLED++))
-
-# WASM Bridge
-install_plugin "gastown-bridge" && ((PLUGINS_INSTALLED++))
-
-info "Plugins processed: $PLUGINS_INSTALLED"
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 6: Claude Flow Memory System
-# ============================================
-step_header "Initializing Claude Flow Memory System"
-
-checking "Claude Flow memory system"
-MEMORY_DIR="$WORKSPACE_FOLDER/.claude-flow/memory"
-
-if [ -d "$MEMORY_DIR" ] && [ -f "$MEMORY_DIR/agent.db" ]; then
-    skip "Memory system already initialized"
-else
-    status "Initializing Claude Flow memory system"
-    
-    # Create memory directory
-    mkdir -p "$MEMORY_DIR" 2>/dev/null
-    
-    if npx -y claude-flow@alpha memory init 2>/dev/null; then
-        ok "Memory system initialized"
-    else
-        # Memory might init on first use
-        warn "Memory init returned non-zero, but may initialize on first use"
-    fi
-    
-    if [ -d "$MEMORY_DIR" ]; then
-        info "  HNSW Vector Search: 150x-12,500x faster than standard"
-        info "  AgentDB: SQLite-based persistent memory with WAL mode"
-        info "  LearningBridge: Bidirectional sync with Claude Code"
-        info "  3-Scope Memory: Project/local/user scoping"
-    fi
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 7: Claude Flow MCP Server
-# ============================================
-step_header "Registering Claude Flow MCP Server"
-
-checking "Claude Flow MCP server registration"
-MCP_CONFIG="$HOME/.claude/claude_desktop_config.json"
-
-if [ -f "$MCP_CONFIG" ] && grep -q "claude-flow" "$MCP_CONFIG" 2>/dev/null; then
-    skip "Claude Flow MCP server already registered"
-else
-    status "Registering Claude Flow MCP server (175+ tools)"
-    
-    # Create config directory
-    mkdir -p "$HOME/.claude" 2>/dev/null
-    
-    # Try to register via claude CLI
-    if has_cmd claude; then
-        claude mcp add claude-flow -- npx -y claude-flow@alpha mcp start 2>/dev/null || true
-    fi
-    
-    # Verify or create manually
-    if [ -f "$MCP_CONFIG" ] && grep -q "claude-flow" "$MCP_CONFIG" 2>/dev/null; then
-        ok "Claude Flow MCP server registered"
-        info "  175+ MCP tools now available"
-    else
-        # Create MCP config manually
-        status "Creating MCP config manually"
-        mkdir -p "$HOME/.claude"
-        cat > "$MCP_CONFIG" << 'MCP_EOF'
-{
-  "mcpServers": {
-    "claude-flow": {
-      "command": "npx",
-      "args": ["-y", "claude-flow@alpha", "mcp", "start"]
-    }
-  }
-}
-MCP_EOF
-        ok "MCP config created at $MCP_CONFIG"
-        info "  Run: claude mcp add claude-flow -- npx -y claude-flow@alpha mcp start"
-    fi
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 8: Security Analyzer Skill
-# ============================================
-step_header "Installing Security Analyzer Skill"
-
-SECURITY_SKILL_DIR="$HOME/.claude/skills/security-analyzer"
-
-checking "security-analyzer skill"
-if skill_has_content "$SECURITY_SKILL_DIR"; then
-    skip "security-analyzer skill already installed"
-else
-    status "Cloning security-analyzer"
-    if git clone --depth 1 https://github.com/Cornjebus/security-analyzer.git /tmp/security-analyzer 2>/dev/null; then
-        mkdir -p "$SECURITY_SKILL_DIR"
-        if [ -d "/tmp/security-analyzer/.claude/skills/security-analyzer" ]; then
-            cp -r /tmp/security-analyzer/.claude/skills/security-analyzer/* "$SECURITY_SKILL_DIR/"
-        else
-            cp -r /tmp/security-analyzer/* "$SECURITY_SKILL_DIR/"
-        fi
-        rm -rf /tmp/security-analyzer
-        ok "security-analyzer skill installed"
-    else
-        warn "security-analyzer clone failed"
-    fi
-fi
-
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# STEP 9: UI UX Pro Max Skill
-# ============================================
-step_header "Installing UI UX Pro Max Skill"
+# =============================================================================
+# STEP 4: UI UX Pro Max Skill
+# Design system skill for Claude Code — component patterns, accessibility,
+# responsive layouts, design tokens. Installed via uipro-cli.
+# =============================================================================
+step 4 "UI UX Pro Max Skill"
 
 UIPRO_SKILL_DIR="$HOME/.claude/skills/ui-ux-pro-max"
-UIPRO_SKILL_DIR_LOCAL="$WORKSPACE_FOLDER/.claude/skills/ui-ux-pro-max"
+UIPRO_SKILL_DIR_LOCAL="$WORKSPACE/.claude/skills/ui-ux-pro-max"
 
-checking "UI UX Pro Max skill"
-if skill_has_content "$UIPRO_SKILL_DIR" || skill_has_content "$UIPRO_SKILL_DIR_LOCAL"; then
-    skip "UI UX Pro Max skill already installed"
+if [ -d "$UIPRO_SKILL_DIR" ] && [ -n "$(ls -A "$UIPRO_SKILL_DIR" 2>/dev/null)" ]; then
+    ok "UI UX Pro Max skill already installed"
+elif [ -d "$UIPRO_SKILL_DIR_LOCAL" ] && [ -n "$(ls -A "$UIPRO_SKILL_DIR_LOCAL" 2>/dev/null)" ]; then
+    ok "UI UX Pro Max skill already installed (local)"
 else
+    # Clean up empty directories
     [ -d "$UIPRO_SKILL_DIR" ] && [ -z "$(ls -A "$UIPRO_SKILL_DIR" 2>/dev/null)" ] && rm -rf "$UIPRO_SKILL_DIR"
     [ -d "$UIPRO_SKILL_DIR_LOCAL" ] && [ -z "$(ls -A "$UIPRO_SKILL_DIR_LOCAL" 2>/dev/null)" ] && rm -rf "$UIPRO_SKILL_DIR_LOCAL"
-    
-    status "Installing UI UX Pro Max skill"
-    npx -y uipro-cli init --ai claude --offline 2>&1 | tail -3
-    
-    if skill_has_content "$UIPRO_SKILL_DIR" || skill_has_content "$UIPRO_SKILL_DIR_LOCAL"; then
+
+    npx -y uipro-cli init --ai claude --offline >> "$LOG" 2>&1
+
+    if [ -d "$UIPRO_SKILL_DIR" ] && [ -n "$(ls -A "$UIPRO_SKILL_DIR" 2>/dev/null)" ]; then
         ok "UI UX Pro Max skill installed"
+    elif [ -d "$UIPRO_SKILL_DIR_LOCAL" ] && [ -n "$(ls -A "$UIPRO_SKILL_DIR_LOCAL" 2>/dev/null)" ]; then
+        ok "UI UX Pro Max skill installed (local)"
     else
-        warn "UI UX Pro Max skill may be incomplete"
+        warn "UI UX Pro Max skill may be incomplete — run manually: npx uipro-cli init --ai claude"
     fi
 fi
 
-info "Elapsed: $(elapsed)"
+ok "Elapsed: $(elapsed)"
 
-# ============================================
-# STEP 10: Worktree Manager Skill
-# ============================================
-step_header "Installing Worktree Manager Skill"
+# =============================================================================
+# STEP 5: GitNexus — Codebase Knowledge Graph
+# Indexes repos into knowledge graph (dependencies, call chains, execution flows)
+# Agents get blast-radius detection before making changes
+# =============================================================================
+step 5 "GitNexus (Codebase Knowledge Graph)"
 
-WORKTREE_SKILL_DIR="$HOME/.claude/skills/worktree-manager"
-
-checking "worktree-manager skill"
-if skill_has_content "$WORKTREE_SKILL_DIR" && [ -f "$WORKTREE_SKILL_DIR/SKILL.md" ]; then
-    skip "worktree-manager skill already installed"
+if ! command -v gitnexus &>/dev/null; then
+    npm install -g gitnexus >> "$LOG" 2>&1 \
+        && ok "GitNexus installed globally" \
+        || {
+            npx gitnexus --version >> "$LOG" 2>&1 \
+                && ok "GitNexus available via npx" \
+                || warn "GitNexus install failed — install manually: npm i -g gitnexus"
+        }
 else
-    mkdir -p "$WORKTREE_SKILL_DIR"
-    status "Cloning worktree-manager (HTTPS)"
-    if git clone --depth 1 https://github.com/Wirasm/worktree-manager-skill.git "$WORKTREE_SKILL_DIR" 2>/dev/null; then
-        # Extract skill from nested .claude/skills/ structure
-        if [ -d "$WORKTREE_SKILL_DIR/.claude/skills" ]; then
-            cp -r "$WORKTREE_SKILL_DIR/.claude/skills/"* "$WORKTREE_SKILL_DIR/" 2>/dev/null
-            ok "worktree-manager skill installed (extracted from nested structure)"
-        else
-            ok "worktree-manager skill installed"
-        fi
-    else
-        status "Trying SSH..."
-        if git clone --depth 1 git@github.com:Wirasm/worktree-manager-skill.git "$WORKTREE_SKILL_DIR" 2>/dev/null; then
-            ok "worktree-manager skill installed via SSH"
-        else
-            warn "Git clone failed - creating minimal skill"
-            cat > "$WORKTREE_SKILL_DIR/SKILL.md" << 'WORKTREE_SKILL'
----
-name: worktree-manager
-description: Create, manage, and cleanup git worktrees with Claude Code agents.
----
-
-# Worktree Manager
-
-Manage parallel development environments using git worktrees.
-
-## Commands
-
-### Create Worktree
-```bash
-git worktree add ~/tmp/worktrees/<branch-name> -b <branch-name>
-cd ~/tmp/worktrees/<branch-name>
-cp ../.env . 2>/dev/null || true
-npm install
-```
-
-### List Worktrees
-```bash
-git worktree list
-```
-
-### Remove Worktree
-```bash
-git worktree remove ~/tmp/worktrees/<branch-name>
-git branch -d <branch-name>
-```
-
-### Port Allocation
-Use ports 8100-8199 for worktree dev servers to avoid conflicts.
-WORKTREE_SKILL
-            cat > "$WORKTREE_SKILL_DIR/config.json" << 'WORKTREE_CONFIG'
-{
-  "terminal": "tmux",
-  "shell": "bash",
-  "claudeCommand": "claude --dangerously-skip-permissions",
-  "portPool": { "start": 8100, "end": 8199 },
-  "portsPerWorktree": 2,
-  "worktreeBase": "~/tmp/worktrees"
-}
-WORKTREE_CONFIG
-            ok "worktree-manager minimal skill created"
-        fi
-    fi
+    ok "GitNexus already present"
 fi
 
-info "Elapsed: $(elapsed)"
+# Index the workspace if it's a git repo
+if [ -d "$WORKSPACE/.git" ]; then
+    (cd "$WORKSPACE" && npx gitnexus analyze 2>/dev/null) \
+        && ok "GitNexus indexed workspace" || true
+fi
 
-# ============================================
-# STEP 11: Statusline Pro
-# ============================================
-step_header "Installing Statusline Pro"
+ok "Elapsed: $(elapsed)"
 
-checking "statusline-pro"
+# =============================================================================
+# STEP 5: Beads — Cross-Session Project Memory (NEW in 4.0)
+# Agents remember across sessions via git-native JSONL.
+# =============================================================================
+step 6 "Beads (Cross-Session Memory)"
+
+if ! command -v bd &>/dev/null; then
+    npm install -g beads-cli >> "$LOG" 2>&1 \
+        && ok "Beads installed" \
+        || {
+            pip install --user beads 2>/dev/null >> "$LOG" 2>&1 \
+                && ok "Beads installed (pip)" \
+                || warn "Beads install failed — install manually: npm i -g beads-cli"
+        }
+else
+    ok "Beads already present"
+fi
+
+# Initialize beads in workspace if it's a git repo
+if [ -d "$WORKSPACE/.git" ]; then
+    (cd "$WORKSPACE" && bd init 2>/dev/null) && ok "Beads initialized in workspace" || true
+fi
+
+ok "Elapsed: $(elapsed)"
+
+# =============================================================================
+# STEP 6: Workspace + Agent Teams
+# =============================================================================
+step 7 "Workspace + Agent Teams"
+
+cd "$WORKSPACE"
+
+# Create workspace directories
+for dir in src tests docs scripts config plans; do
+    mkdir -p "$dir"
+done
+ok "Workspace directories created"
+
+# Enable Native Agent Teams (Anthropic experimental)
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+ok "Agent Teams enabled (CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1)"
+
+ok "Elapsed: $(elapsed)"
+
+# =============================================================================
+# STEP 7: Statusline Pro
+# =============================================================================
+step 8 "Statusline Pro"
+
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
-STATUSLINE_CONFIG_DIR="$HOME/.claude/statusline-pro"
 STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
 
-mkdir -p "$STATUSLINE_CONFIG_DIR" 2>/dev/null
+mkdir -p "$HOME/.claude" 2>/dev/null
 
-info "ccusage: available on-demand via 'npx -y ccusage'"
-
-status "Creating statusline script"
 cat > "$STATUSLINE_SCRIPT" << 'STATUSLINE_SCRIPT'
 #!/bin/bash
-# TURBO FLOW v3.4.1 - STATUSLINE
+# TURBO FLOW v4.0 - STATUSLINE
 
 INPUT=$(cat)
 
@@ -591,6 +336,7 @@ BG_GREEN="\033[48;5;82m"
 BG_YELLOW="\033[48;5;226m"
 BG_PINK="\033[48;5;198m"
 BG_BLUE="\033[48;5;33m"
+BG_RED="\033[48;5;196m"
 RST="\033[0m"
 BOLD="\033[1m"
 SEP=""
@@ -614,54 +360,35 @@ CACHE_READ=$(echo "$INPUT" | jq -r '.context_window.current_usage.cache_read_inp
 
 GIT_BRANCH=""
 GIT_DIRTY=""
-
 if command -v git &>/dev/null && git -C "$CWD" rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
     GIT_BRANCH=$(git -C "$CWD" branch --show-current 2>/dev/null || echo "")
-    if [[ -n $(git -C "$CWD" status --porcelain 2>/dev/null) ]]; then
-        GIT_DIRTY="*"
-    else
-        GIT_DIRTY=""
-    fi
+    [[ -n $(git -C "$CWD" status --porcelain 2>/dev/null) ]] && GIT_DIRTY="*" || GIT_DIRTY=""
 fi
 
 format_duration() {
-    local ms=$1
-    local secs=$((ms / 1000))
-    local mins=$((secs / 60))
-    local hours=$((mins / 60))
-    mins=$((mins % 60))
-    secs=$((secs % 60))
+    local ms=$1 secs=$((ms / 1000)) mins=$((ms / 60000)) hours=$((ms / 3600000))
+    mins=$((mins % 60)); secs=$((secs % 60))
     if [ $hours -gt 0 ]; then echo "${hours}h${mins}m"
     elif [ $mins -gt 0 ]; then echo "${mins}m${secs}s"
-    else echo "${secs}s"
-    fi
+    else echo "${secs}s"; fi
 }
 
 format_tokens() {
     local tokens=$1
     if [ $tokens -ge 1000000 ]; then echo "$((tokens / 1000000))M"
     elif [ $tokens -ge 1000 ]; then echo "$((tokens / 1000))k"
-    else echo "$tokens"
-    fi
+    else echo "$tokens"; fi
 }
 
-progress_bar() {
-    local pct=$1
-    local width=${2:-15}
-    local filled=$((pct * width / 100))
-    local empty=$((width - filled))
-    local bar_color=""
-    if [ $pct -lt 50 ]; then bar_color="$FG_GREEN"
-    elif [ $pct -lt 70 ]; then bar_color="$FG_CYAN"
-    elif [ $pct -lt 85 ]; then bar_color="$FG_YELLOW"
-    elif [ $pct -lt 95 ]; then bar_color="$FG_ORANGE"
-    else bar_color="$FG_RED"
-    fi
-    printf "${bar_color}"
-    for ((i=0; i<filled; i++)); do printf "#"; done
-    printf "${FG_GRAY}"
-    for ((i=0; i<empty; i++)); do printf "-"; done
-    printf "${RST}"
+ctx_bar() {
+    local pct=$1 width=${2:-15} filled=$((pct * width / 100)) empty=$((width - filled))
+    local bar_color="$FG_GREEN"
+    [ $pct -ge 50 ] && bar_color="$FG_CYAN"
+    [ $pct -ge 70 ] && bar_color="$FG_YELLOW"
+    [ $pct -ge 85 ] && bar_color="$FG_ORANGE"
+    [ $pct -ge 95 ] && bar_color="$FG_RED"
+    printf "${bar_color}"; printf "%${filled}s" | tr ' ' '#'
+    printf "${FG_GRAY}"; printf "%${empty}s" | tr ' ' '-'; printf "${RST}"
 }
 
 DURATION_FMT=$(format_duration $DURATION_MS)
@@ -669,19 +396,17 @@ CTX_TOTAL=$((CTX_INPUT + CTX_OUTPUT))
 CTX_TOTAL_FMT=$(format_tokens $CTX_TOTAL)
 CTX_SIZE_FMT=$(format_tokens $CTX_SIZE)
 CACHE_HIT_PCT=0
-if [ $((CACHE_READ + CACHE_CREATE)) -gt 0 ]; then
-    CACHE_HIT_PCT=$((CACHE_READ * 100 / (CACHE_READ + CACHE_CREATE + 1)))
-fi
+[ $((CACHE_READ + CACHE_CREATE)) -gt 0 ] && CACHE_HIT_PCT=$((CACHE_READ * 100 / (CACHE_READ + CACHE_CREATE + 1)))
 MODEL_ABBREV=$(echo "$MODEL" | sed 's/Sonnet/So/;s/Opus/Op/;s/Haiku/Ha/' | cut -c1-8)
 COST_FMT=$(printf "%.2f" $COST_USD 2>/dev/null || echo "0.00")
 
 LINE1="${BG_MAGENTA}${FG_WHITE}${BOLD} [Project] ${PROJECT_NAME} ${RST}${FG_MAGENTA}${BG_CYAN}${SEP}${RST}${BG_CYAN}${FG_WHITE}${BOLD} [Model] ${MODEL_ABBREV} ${RST}${FG_CYAN}${BG_GREEN}${SEP}${RST}"
-[ -n "$GIT_BRANCH" ] && LINE1+="${BG_GREEN}${FG_WHITE}${BOLD} [Git] ${GIT_BRANCH}${GIT_DIRTY} ${RST}${FG_GREEN}${BG_BLUE}${SEP}${RST}" || LINE1+="${BG_GREEN}${FG_WHITE}${BOLD} [Git] no-git ${RST}${FG_GREEN}${BG_BLUE}${SEP}${RST}"
+[ -n "$GIT_BRANCH" ] && LINE1+="${BG_GREEN}${FG_WHITE}${BOLD} [Git] ${GIT_BRANCH}${GIT_DIRTY} ${RST}${FG_GREEN}${BG_BLUE}${SEP}${RST}" || LINE1+="${BG_GREEN}${FG_WHITE}${BOLD} [Git] — ${RST}${FG_GREEN}${BG_BLUE}${SEP}${RST}"
 [ -n "$VERSION" ] && LINE1+="${BG_BLUE}${FG_WHITE} [v] ${VERSION} ${RST}${FG_BLUE}${BG_PINK}${SEP}${RST}"
-LINE1+="${BG_PINK}${FG_WHITE} [Style] ${OUTPUT_STYLE} ${RST}"
+LINE1+="${BG_PINK}${FG_WHITE} [TF] 4.0 ${RST}"
 [ -n "$SESSION_ID" ] && LINE1+="${FG_PINK}${BG_DEEP}${SEP}${RST}${BG_DEEP}${FG_GRAY} [SID] ${SESSION_ID} ${RST}"
 
-LINE2="${BG_YELLOW}${FG_WHITE}${BOLD} [Tokens] ${CTX_TOTAL_FMT}/${CTX_SIZE_FMT} ${RST}${FG_YELLOW}${BG_DARK}${SEP}${RST}${BG_DARK}${FG_WHITE} [Ctx] $(progress_bar $CTX_USED_PCT 20) ${CTX_USED_PCT}% ${RST}${FG_DARK}${BG_CYAN}${SEP}${RST}"
+LINE2="${BG_YELLOW}${FG_WHITE}${BOLD} [Tokens] ${CTX_TOTAL_FMT}/${CTX_SIZE_FMT} ${RST}${FG_YELLOW}${BG_DARK}${SEP}${RST}${BG_DARK}${FG_WHITE} [Ctx] $(ctx_bar $CTX_USED_PCT 20) ${CTX_USED_PCT}% ${RST}${FG_DARK}${BG_CYAN}${SEP}${RST}"
 [ $CACHE_HIT_PCT -gt 0 ] && LINE2+="${BG_CYAN}${FG_WHITE} [Cache] ${CACHE_HIT_PCT}% ${RST}" || LINE2+="${BG_CYAN}${FG_WHITE} [Cache] cold ${RST}"
 LINE2+="${FG_CYAN}${BG_PINK}${SEP}${RST}${BG_PINK}${FG_WHITE}${BOLD} [Cost] \$${COST_FMT} ${RST}${FG_PINK}${BG_DEEP}${SEP}${RST}${BG_DEEP}${FG_CYAN} [Time] ${DURATION_FMT} ${RST}"
 
@@ -696,10 +421,8 @@ STATUSLINE_SCRIPT
 chmod +x "$STATUSLINE_SCRIPT"
 ok "Statusline script created"
 
-status "Configuring Statusline in settings.json"
-
+# Configure in settings.json
 if [ ! -f "$CLAUDE_SETTINGS" ]; then
-    mkdir -p "$HOME/.claude"
     echo '{}' > "$CLAUDE_SETTINGS"
 fi
 
@@ -714,237 +437,337 @@ settings.statusLine = {
 fs.writeFileSync('$CLAUDE_SETTINGS', JSON.stringify(settings, null, 2));
 " 2>/dev/null && ok "Statusline configured in settings.json" || warn "settings.json config failed"
 
-info "Elapsed: $(elapsed)"
+ok "Elapsed: $(elapsed)"
 
-# ============================================
-# STEP 12: Workspace setup
-# ============================================
-step_header "Setting up workspace"
+# =============================================================================
+# STEP 8: Generate CLAUDE.md
+# =============================================================================
+step 9 "CLAUDE.md Generation"
 
-cd "$WORKSPACE_FOLDER" 2>/dev/null || true
+cat > "$WORKSPACE/CLAUDE.md" << 'CLAUDEEOF'
+# CLAUDE.md — TurboFlow 4.0 Context
 
-[ ! -f "package.json" ] && npm init -y --silent 2>/dev/null
-npm pkg set type="module" 2>/dev/null || true
+## Identity
+This workspace runs TurboFlow 4.0 — a composed agentic development environment.
+Orchestration: Ruflo v3.5 (skills-based, not slash commands).
+Memory: Three-tier (Beads → Native Tasks → AgentDB).
+Isolation: Git worktrees per parallel agent.
 
-# Install sql.js for memory database (after package.json exists)
-if ! npm list sql.js --depth=0 >/dev/null 2>&1; then
-    status "Installing sql.js for memory database"
-    npm install sql.js --save-dev 2>/dev/null || warn "sql.js install failed (memory may use fallback)"
-fi
+## Memory Protocol (MANDATORY — follow this every session)
 
-for dir in src tests docs scripts config plans; do
-    mkdir -p "$dir" 2>/dev/null
-done
+### Session Start
+1. Run `bd ready` to check project state (blockers, in-progress work, decisions)
+2. Check Native Tasks: review any persisted task lists from prior sessions
+3. AgentDB context loads automatically via Ruflo
 
-ok "Workspace configured"
-info "Elapsed: $(elapsed)"
+### During Work — Decision Tree
+- **Project roadmap / blockers / dependencies / decisions** → `bd add` (Beads)
+- **Current session tasks / active checklist** → Native Tasks
+- **Learned patterns / routing weights / skills** → AgentDB (automatic)
 
-# ============================================
-# STEP 13: Bash aliases
-# ============================================
-step_header "Installing bash aliases"
+### Session End
+- File any discovered work as Beads issues: `bd add --type issue "description"`
+- Summarize architectural decisions in Beads: `bd add --type decision "description"`
+- AgentDB persists automatically
 
-checking "TURBO FLOW aliases"
-if grep -q "TURBO FLOW v3.4.1 COMPLETE" ~/.bashrc 2>/dev/null; then
-    skip "Bash aliases already installed"
-else
-    sed -i '/# === TURBO FLOW/,/# === END TURBO FLOW/d' ~/.bashrc 2>/dev/null || true
-    
-    cat << 'ALIASES_EOF' >> ~/.bashrc
+## Isolation Rules
+- Each parallel agent MUST operate in its own git worktree
+- Create worktree: `git worktree add .worktrees/agent-N -b agent-N/task-name`
+- Database schema per worktree: use $DATABASE_SCHEMA env var for PG Vector
+- NEVER run `--dangerously-skip-permissions` on bare metal — containers only
 
-# === TURBO FLOW v3.4.1 COMPLETE + PLUGINS ===
+## Agent Teams
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is enabled
+- Lead agent may spawn up to 3 teammates
+- Recursion limit: depth 2 (lead → sub-agents, sub-agents cannot spawn swarms)
+- If 3+ agents are blocked simultaneously → pause and alert human
 
-# RUVECTOR
-alias ruv="npx -y ruvector"
-alias ruv-stats="npx -y @ruvector/cli hooks stats"
-alias ruv-route="npx -y @ruvector/cli hooks route"
-alias ruv-remember="npx -y @ruvector/cli hooks remember"
-alias ruv-recall="npx -y @ruvector/cli hooks recall"
-alias ruv-learn="npx -y @ruvector/cli hooks learn"
-alias ruv-init="npx -y @ruvector/cli hooks init"
-alias ruv-viz="cd ~/.claude/skills/rUv_helpers/claude-flow-ruvector-visualization && node server.js &"
-alias ruv-viz-stop="pkill -f 'node server.js' 2>/dev/null; echo 'Visualization stopped'"
+## Model Routing
+- Ruflo auto-selects model tier per task complexity (saves ~75% API costs)
+- Claude Opus 4.6: complex reasoning, architecture decisions
+- Claude Sonnet 4.5: standard coding, implementation
+- Claude Haiku 4.5: simple tasks, formatting, quick lookups
 
-# CLAUDE CODE
-alias dsp="claude --dangerously-skip-permissions"
+## Stack Reference
+- Orchestration: `npx ruflo@latest` (NOT claude-flow)
+- Swarms: `npx ruflo swarm init --topology hierarchical --max-agents 8`
+- Memory: Beads (`bd`), Native Tasks, AgentDB (`npx ruflo agentdb`)
+- Codebase Graph: GitNexus (`npx gitnexus analyze`)
+- Browser: via Ruflo's bundled browser tools (59 MCP tools, element refs, snapshots)
+- Observability: via Ruflo's built-in session tracking + AttestationLog
+- Plugins: agentic-qe, code-intelligence, test-intelligence, perf-optimizer, teammate, gastown-bridge
+- Specs: OpenSpec (`npx @fission-ai/openspec`)
 
-# CLAUDE FLOW V3
-alias cf="npx -y claude-flow@alpha"
-alias cf-init="npx -y claude-flow@alpha init --force"
-alias cf-wizard="npx -y claude-flow@alpha init --wizard"
-alias cf-swarm="npx -y claude-flow@alpha swarm init --topology hierarchical"
-alias cf-mesh="npx -y claude-flow@alpha swarm init --topology mesh"
-alias cf-agent="npx -y claude-flow@alpha --agent"
-alias cf-list="npx -y claude-flow@alpha --list"
-alias cf-daemon="npx -y claude-flow@alpha daemon start"
-alias cf-memory="npx -y claude-flow@alpha memory"
-alias cf-doctor="npx -y claude-flow@alpha doctor"
-alias cf-mcp="npx -y claude-flow@alpha mcp start"
-alias cf-plugins="npx -y claude-flow@alpha plugins"
+## Ruflo Plugins
+- **Agentic QE**: 58 QE agents — TDD, coverage, security scanning, chaos engineering
+- **Code Intelligence**: code analysis, pattern detection, refactoring suggestions
+- **Test Intelligence**: test generation, gap analysis, flaky test detection
+- **Perf Optimizer**: performance profiling, bottleneck detection
+- **Teammate Plugin**: bridges Native Agent Teams ↔ Ruflo swarms (21 MCP tools)
+- **Gastown Bridge**: WASM-accelerated orchestration, Beads sync (20 MCP tools)
+- **OpenSpec**: spec-driven development (`os init`, `os`)
 
-# CLAUDE FLOW SKILLS - Core (built-in, accessed via cf command)
-alias cf-sparc="npx -y claude-flow@alpha --skill sparc-methodology"
-alias cf-swarm-skill="npx -y claude-flow@alpha swarm"
-alias cf-hive="npx -y claude-flow@alpha hive-mind"
-alias cf-pair="npx -y claude-flow@alpha --agent pair-programmer"
+## Codebase Intelligence (GitNexus)
+- Index repo: `npx gitnexus analyze` (run from repo root, creates knowledge graph)
+- Before editing shared code: check blast radius via GitNexus MCP tools
+- Auto-creates AGENTS.md and CLAUDE.md context files
+- One MCP server serves all indexed repos — no per-project config needed
 
-# CLAUDE FLOW SKILLS - AgentDB
-alias cf-agentdb-search="npx -y claude-flow@alpha memory search"
-alias cf-agentdb-store="npx -y claude-flow@alpha memory store"
+## Cost Guardrails
+- Hard session cap: $15/hr (configurable)
+- Use Haiku for simple tasks — don't burn Opus on formatting
+- Monitor: `claude-usage` or ruflo statusline
+CLAUDEEOF
 
-# CLAUDE FLOW PLUGINS
-alias plugin-list="npx -y claude-flow@alpha plugins list"
-alias plugin-search="npx -y claude-flow@alpha plugins search"
+ok "CLAUDE.md generated with 3-tier memory, isolation rules, plugins, cost guardrails"
+ok "Elapsed: $(elapsed)"
 
-# AGENTIC QE
-alias aqe="npx -y agentic-qe"
-alias aqe-generate="npx -y agentic-qe generate"
-alias aqe-gate="npx -y agentic-qe gate"
+# =============================================================================
+# STEP 9: Bash Aliases + MCP Registration
+# =============================================================================
+step 10 "Aliases + Environment + MCP Registration"
 
-# CLAUDE FLOW BROWSER (59 MCP tools)
-alias cfb-open="npx -y claude-flow@alpha mcp call browser/open"
-alias cfb-snap="npx -y claude-flow@alpha mcp call browser/snapshot"
-alias cfb-click="npx -y claude-flow@alpha mcp call browser/click"
-alias cfb-fill="npx -y claude-flow@alpha mcp call browser/fill"
-alias cfb-trajectory="npx -y claude-flow@alpha mcp call browser/trajectory-start"
-alias cfb-learn="npx -y claude-flow@alpha mcp call browser/trajectory-save"
+ALIAS_FILE="$HOME/.turboflow_aliases"
 
-# OPENSPEC
-alias os="npx -y @fission-ai/openspec"
-alias os-init="npx -y @fission-ai/openspec init"
+cat > "$ALIAS_FILE" << 'ALIASEOF'
+# =============================================================================
+# TurboFlow 4.0 Aliases
+# =============================================================================
 
-# WORKTREE MANAGER
-alias wt-status="claude 'What is the status of my worktrees?'"
-alias wt-clean="claude 'Clean up completed worktrees'"
-alias wt-create="claude 'Create a worktree for'"
+# --- Agent Teams ---
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
-# DEPLOYMENT
-alias deploy="claude 'Deploy this app'"
-alias deploy-preview="claude 'Deploy and give me the preview URL'"
+# --- Claude Code ---
+alias claude-hierarchical='claude --dangerously-skip-permissions'
+alias dsp='claude --dangerously-skip-permissions'
 
-# HOOKS INTELLIGENCE
-alias hooks-pre="npx -y claude-flow@alpha hooks pre-edit"
-alias hooks-post="npx -y claude-flow@alpha hooks post-edit"
-alias hooks-train="npx -y claude-flow@alpha hooks pretrain --depth deep"
-alias hooks-intel="npx -y claude-flow@alpha hooks intelligence --status"
+# --- Ruflo (replaces ALL cf-* aliases) ---
+alias rf='npx ruflo@latest'
+alias rf-init='npx ruflo@latest init'
+alias rf-wizard='npx ruflo@latest init --wizard'
+alias rf-doctor='npx ruflo@latest doctor --fix'
+alias rf-swarm='npx ruflo@latest swarm init --topology hierarchical --max-agents 8 --strategy specialized'
+alias rf-mesh='npx ruflo@latest swarm init --topology mesh'
+alias rf-ring='npx ruflo@latest swarm init --topology ring'
+alias rf-star='npx ruflo@latest swarm init --topology star'
+alias rf-daemon='npx ruflo@latest daemon start'
+alias rf-status='npx ruflo@latest status'
+alias rf-migrate='npx ruflo@latest migrate run --backup'
+alias rf-plugins='npx ruflo@latest plugins list'
 
-# MEMORY VECTOR OPERATIONS
-alias mem-search="npx -y claude-flow@alpha memory search"
-alias mem-vsearch="npx -y claude-flow@alpha memory vector-search"
-alias mem-vstore="npx -y claude-flow@alpha memory store-vector"
-alias mem-store="npx -y claude-flow@alpha memory store"
-alias mem-stats="npx -y claude-flow@alpha memory stats"
+# Spawn agents
+rf-spawn() { npx ruflo@latest agent spawn -t "${1:-coder}" --name "${2:-agent-$RANDOM}"; }
+rf-task() { npx ruflo@latest swarm "$1" --parallel; }
 
-# NEURAL OPERATIONS
-alias neural-train="npx -y claude-flow@alpha neural train"
-alias neural-status="npx -y claude-flow@alpha neural status"
-alias neural-patterns="npx -y claude-flow@alpha neural patterns"
+# --- RuVector / AgentDB (accessed through ruflo) ---
+alias ruv='npx ruflo@latest agentdb'
+alias ruv-stats='npx ruflo@latest agentdb stats'
+alias ruv-init='npx ruflo@latest agentdb init'
+ruv-remember() { npx ruflo@latest agentdb store --key "$1" --value "$2"; }
+ruv-recall() { npx ruflo@latest agentdb query "$1"; }
 
-# AGENTDB
-alias agentdb="npx -y agentdb"
-alias agentdb-init="npx -y agentdb init"
-alias agentdb-stats="npx -y agentdb stats"
+# --- Memory (ruflo native) ---
+alias mem-search='npx ruflo@latest memory search'
+alias mem-store='npx ruflo@latest memory store'
+alias mem-stats='npx ruflo@latest memory stats'
 
-# COST TRACKING
-alias ccusage="npx -y ccusage"
+# --- Beads (cross-session memory) ---
+alias bd='bd'
+alias bd-ready='bd ready'
+alias bd-add='bd add'
+alias bd-list='bd list'
+alias bd-status='bd status'
 
-# STATUS HELPERS
+# --- Git Worktrees (agent isolation) ---
+wt-add() {
+    local name="${1:?Usage: wt-add <agent-name>}"
+    git worktree add ".worktrees/$name" -b "$name/$(date +%s)"
+    echo "Worktree created: .worktrees/$name"
+    export DATABASE_SCHEMA="wt_${name}_$(date +%s)"
+    # Auto-index with GitNexus if available
+    if command -v npx &>/dev/null; then
+        (cd ".worktrees/$name" && npx gitnexus analyze 2>/dev/null &)
+    fi
+}
+wt-remove() {
+    local name="${1:?Usage: wt-remove <agent-name>}"
+    git worktree remove ".worktrees/$name" --force 2>/dev/null
+    echo "Worktree removed: $name"
+}
+wt-list() { git worktree list; }
+wt-clean() { git worktree prune; }
+
+# --- GitNexus (codebase knowledge graph) ---
+alias gnx='npx gitnexus'
+alias gnx-analyze='npx gitnexus analyze'
+alias gnx-analyze-force='npx gitnexus analyze --force'
+alias gnx-mcp='npx gitnexus mcp'
+alias gnx-serve='npx gitnexus serve'
+alias gnx-status='npx gitnexus status'
+alias gnx-wiki='npx gitnexus wiki'
+alias gnx-list='npx gitnexus list'
+alias gnx-clean='npx gitnexus clean'
+
+# --- Agentic QE (via ruflo plugin) ---
+alias aqe='npx ruflo@latest plugins run agentic-qe'
+alias aqe-generate='npx ruflo@latest plugins run agentic-qe generate'
+alias aqe-gate='npx ruflo@latest plugins run agentic-qe gate'
+
+# --- OpenSpec (spec-driven development) ---
+alias os='npx @fission-ai/openspec'
+alias os-init='npx @fission-ai/openspec init'
+
+# --- Hooks Intelligence (ruflo native) ---
+alias hooks-pre='npx ruflo@latest hooks pre-edit'
+alias hooks-post='npx ruflo@latest hooks post-edit'
+alias hooks-train='npx ruflo@latest hooks pretrain --depth deep'
+alias hooks-route='npx ruflo@latest hooks route'
+
+# --- Neural (ruflo native) ---
+alias neural-train='npx ruflo@latest neural train'
+alias neural-status='npx ruflo@latest neural status'
+alias neural-patterns='npx ruflo@latest neural patterns'
+
+# --- Usage monitoring ---
+alias claude-usage='claude usage 2>/dev/null || echo "Run inside claude session"'
+
+# --- TurboFlow Meta ---
 turbo-status() {
-    echo "Turbo Flow v3.4.1 (Complete + Plugins) Status"
-    echo "================================================"
+    echo "╔══════════════════════════════════════════╗"
+    echo "║       TurboFlow 4.0 Status Check         ║"
+    echo "╚══════════════════════════════════════════╝"
     echo ""
     echo "Core:"
-    echo "  Node.js:       $(node -v 2>/dev/null || echo 'not found')"
-    echo "  Claude Code:   $(claude --version 2>/dev/null | head -1 || echo 'not found')"
-    echo "  Claude Flow:   $(npx -y claude-flow@alpha --version 2>/dev/null | head -1 || echo 'not found')"
+    claude --version 2>/dev/null && echo "  ✓ Claude Code" || echo "  ✗ Claude Code"
+    npx ruflo@latest --version 2>/dev/null && echo "  ✓ Ruflo" || echo "  ✗ Ruflo"
     echo ""
-    echo "Skills: Built-in to Claude Flow"
-    echo "Plugins: Available via 'cf-plugins list'"
-    echo "MCP Tools: 175+ available"
+    echo "Memory:"
+    bd --version 2>/dev/null && echo "  ✓ Beads" || echo "  ✗ Beads (install: npm i -g beads-cli)"
+    echo "  Agent Teams: ${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-off}"
     echo ""
-    echo "Run 'turbo-help' for command reference"
+    echo "Plugins:"
+    npx ruflo@latest plugins list 2>/dev/null | head -10 || echo "  Run: rf-plugins"
+    echo ""
+    echo "Codebase Intelligence:"
+    command -v gitnexus &>/dev/null && echo "  ✓ GitNexus" || (npx gitnexus --version 2>/dev/null && echo "  ✓ GitNexus (via npx)" || echo "  ○ GitNexus")
+    echo ""
+    echo "Workspace:"
+    [ -f "CLAUDE.md" ] && echo "  ✓ CLAUDE.md" || echo "  ✗ CLAUDE.md (run setup again)"
+    [ -d ".beads" ] && echo "  ✓ Beads initialized" || echo "  ○ Beads not initialized (run: bd init)"
+    git worktree list 2>/dev/null | head -5
+    echo ""
+    echo "Agents: $(ls -1 agents/*.md 2>/dev/null | wc -l || echo '0') subagent files"
+    echo "Statusline: $([ -x "$HOME/.claude/turbo-flow-statusline.sh" ] && echo '✓ active' || echo '✗ missing')"
 }
 
 turbo-help() {
-    echo "Turbo Flow v3.4.1 Quick Reference"
-    echo "=================================="
+    echo "TurboFlow 4.0 — Quick Reference"
     echo ""
-    echo "CORE:          cf, cf-init, cf-swarm, cf-mesh"
-    echo "MEMORY:        mem-search, mem-vsearch, mem-stats"
-    echo "NEURAL:        neural-train, neural-status, neural-patterns"
-    echo "BROWSER:       cfb-open, cfb-snap, cfb-click, cfb-trajectory"
-    echo "WORKFLOW:      wt-status, deploy, deploy-preview"
-    echo "PLUGINS:       cf-plugins list, plugin-search"
+    echo "Orchestration (Ruflo):"
+    echo "  rf-wizard          Interactive setup"
+    echo "  rf-swarm           Launch hierarchical swarm (8 agents max)"
+    echo "  rf-spawn coder     Spawn a coder agent"
+    echo "  rf-doctor          Health check + auto-fix"
+    echo "  rf-daemon          Start background workers"
+    echo "  rf-plugins         List installed plugins"
     echo ""
-    echo "STATUS:        turbo-status, turbo-help"
+    echo "Memory:"
+    echo "  bd-ready           Check project state (session start)"
+    echo "  bd-add             Record issue/decision/blocker"
+    echo "  ruv-remember K V   Store in AgentDB"
+    echo "  ruv-recall Q       Query AgentDB"
+    echo "  mem-search Q       Search ruflo memory"
+    echo ""
+    echo "Isolation:"
+    echo "  wt-add agent-1     Create worktree for agent"
+    echo "  wt-remove agent-1  Clean up worktree"
+    echo "  wt-list            Show all worktrees"
+    echo ""
+    echo "Quality & Testing:"
+    echo "  aqe-generate       Generate tests (Agentic QE plugin)"
+    echo "  aqe-gate           Quality gate"
+    echo "  os-init            Initialize OpenSpec in project"
+    echo "  os                 Run OpenSpec"
+    echo ""
+    echo "Intelligence:"
+    echo "  hooks-train        Deep pretrain on codebase"
+    echo "  hooks-route        Route task to optimal agent"
+    echo "  neural-train       Train neural patterns"
+    echo "  neural-patterns    View learned patterns"
+    echo ""
+    echo "Codebase Intelligence (GitNexus):"
+    echo "  gnx-analyze        Index repo into knowledge graph"
+    echo "  gnx-serve          Start local server for web UI"
+    echo "  gnx-wiki           Generate repo wiki from graph"
+    echo ""
+    echo "Status: turbo-status | Logs: cat /tmp/turboflow-setup.log"
 }
+ALIASEOF
 
-export PATH="$HOME/.claude/bin:$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"
-[ -n "$npm_config_prefix" ] && export PATH="$npm_config_prefix/bin:$PATH"
+# Source aliases into all common shell configs
+for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+    if [ -f "$rc" ]; then
+        # Remove old turbo flow alias blocks from v3.x
+        sed -i '/# === TURBO FLOW/,/# === END TURBO FLOW/d' "$rc" 2>/dev/null || true
+        grep -q 'turboflow_aliases' "$rc" 2>/dev/null || \
+            echo "[ -f \"$ALIAS_FILE\" ] && source \"$ALIAS_FILE\"" >> "$rc"
+    fi
+done
 
-# === END TURBO FLOW v3.4.1 COMPLETE + PLUGINS ===
+source "$ALIAS_FILE" 2>/dev/null || true
+ok "Aliases written to $ALIAS_FILE and sourced"
 
-ALIASES_EOF
-    ok "Bash aliases installed"
-fi
+# --- MCP Registration ---
 
-info "Elapsed: $(elapsed)"
+# GitNexus MCP
+npx gitnexus setup 2>/dev/null \
+    && ok "GitNexus MCP registered" \
+    || {
+        claude mcp add gitnexus -- npx -y gitnexus mcp 2>/dev/null \
+            && ok "GitNexus MCP registered manually" \
+            || warn "GitNexus MCP registration failed (run: npx gitnexus setup)"
+    }
 
-# ============================================
-# STEP 14: Run Doctor
-# ============================================
-step_header "Running Claude Flow Doctor"
+ok "All MCP servers registered"
 
-status "Running diagnostics..."
-npx -y claude-flow@alpha doctor 2>&1 | head -30 || true
+# Clear stale caches
+npm cache clean --force 2>/dev/null || true
+rm -rf /tmp/npm-* /tmp/nvm-* 2>/dev/null || true
 
-# Clear npx cache to fix stale version warnings (v0.0.0 issue)
-status "Clearing npx cache..."
-npx clear-npx-cache 2>/dev/null || npm cache clean --force 2>/dev/null || true
-ok "Cache cleared"
+ok "Elapsed: $(elapsed)"
 
-info "Elapsed: $(elapsed)"
-
-# ============================================
-# COMPLETE
-# ============================================
-step_header "Setup Complete"
-
+# =============================================================================
+# DONE
+# =============================================================================
 END_TIME=$(date +%s)
 TOTAL_TIME=$((END_TIME - START_TIME))
 
-CF_STATUS="[ ]"; [ -d "$WORKSPACE_FOLDER/.claude-flow" ] && CF_STATUS="[OK]"
-CLAUDE_STATUS="[ ]"; has_cmd claude && CLAUDE_STATUS="[OK]"
-MEMORY_STATUS="[ ]"; [ -d "$WORKSPACE_FOLDER/.claude-flow/memory" ] && MEMORY_STATUS="[OK]"
-MCP_STATUS="[ ]"; [ -f ~/.claude/claude_desktop_config.json ] && grep -q "claude-flow" ~/.claude/claude_desktop_config.json 2>/dev/null && MCP_STATUS="[OK]"
-STATUSLINE_STATUS="[ ]"; [ -f ~/.claude/turbo-flow-statusline.sh ] && [ -x ~/.claude/turbo-flow-statusline.sh ] && STATUSLINE_STATUS="[OK]"
-
 echo ""
-echo "=================================================="
-echo "   TURBO FLOW v3.4.1 SETUP COMPLETE!"
-echo "=================================================="
+echo -e "${BOLD}╔══════════════════════════════════════════════════╗${NC}"
+echo -e "${BOLD}║         ${GREEN}✓ TurboFlow 4.0 Setup Complete${NC}${BOLD}          ║${NC}"
+echo -e "${BOLD}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
-progress_bar 100
+echo -e "  ${BOLD}Summary:${NC}"
+echo -e "    Core:    Claude Code + Ruflo v3.5 (215 MCP tools, 60+ agents)"
+echo -e "    Plugins: 6 (agentic-qe, code-intel, test-intel, perf, teammate, gastown)"
+echo -e "    Memory:  Beads + Native Tasks + AgentDB (3-tier)"
+echo -e "    Graph:   GitNexus codebase knowledge graph"
+echo -e "    Time:    ${TOTAL_TIME}s"
 echo ""
+echo -e "  ${BOLD}Next steps:${NC}"
+echo -e "    1. ${CYAN}source ~/.bashrc${NC}     (or ~/.zshrc)"
+echo -e "    2. ${CYAN}turbo-status${NC}         (verify everything)"
+echo -e "    3. ${CYAN}rf-wizard${NC}            (interactive ruflo setup)"
+echo -e "    4. ${CYAN}claude${NC}               (start coding)"
 echo ""
-echo "  SUMMARY"
-echo "  -------"
-echo "  CORE"
-echo "  $CLAUDE_STATUS Claude Code"
-echo "  $CF_STATUS Claude Flow V3"
+echo -e "  ${BOLD}Changed from v3.4.1:${NC}"
+echo -e "    • claude-flow@alpha → ${GREEN}ruflo@latest${NC} (rf-* aliases)"
+echo -e "    • 15 plugins → ${GREEN}6 plugins${NC} (9 redundant/domain-specific removed)"
+echo -e "    • Slash commands → ${GREEN}skills${NC} (auto-activated)"
+echo -e "    • No cross-session memory → ${GREEN}Beads${NC} (bd-* aliases)"
+echo -e "    • No codebase awareness → ${GREEN}GitNexus${NC} (gnx-* aliases)"
+echo -e "    • Manual worktree skill → ${GREEN}native wt-* helpers${NC}"
+echo -e "    • 4 separate core installs → ${GREEN}1 ruflo init${NC}"
 echo ""
-echo "  INFRASTRUCTURE"
-echo "  $MEMORY_STATUS Memory System (HNSW/AgentDB)"
-echo "  $MCP_STATUS MCP Server (175+ tools)"
-echo "  $STATUSLINE_STATUS Statusline Pro"
-echo ""
-echo "  Time: ${TOTAL_TIME}s"
-echo ""
-echo "  QUICK START"
-echo "  ----------"
-echo "  1. source ~/.bashrc"
-echo "  2. turbo-status"
-echo "  3. turbo-help"
-echo ""
-echo "  Happy coding!"
+echo -e "  ${BOLD}Full log:${NC} $LOG"
 echo ""

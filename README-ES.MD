@@ -1,46 +1,55 @@
-# 🚀 Turbo Flow Claude v3.4.0
+# 🚀 Turbo Flow v4.0 — La Migración a Ruflo
 
 <div align="center">
 
-![Versión](https://img.shields.io/badge/versión-3.4.0-blue?style=for-the-badge)
-![Claude Flow](https://img.shields.io/badge/Claude_Flow-V3-purple?style=for-the-badge)
-![RuVector](https://img.shields.io/badge/RuVector-Motor_Neural-green?style=for-the-badge)
-![Skills](https://img.shields.io/badge/Skills-56_Total-orange?style=for-the-badge)
-![Plugins](https://img.shields.io/badge/Plugins-15-critical?style=for-the-badge)
+![Versión](https://img.shields.io/badge/versión-4.0.0-blue?style=for-the-badge)
+![Ruflo](https://img.shields.io/badge/Ruflo-v3.5-purple?style=for-the-badge)
+![MCP Tools](https://img.shields.io/badge/MCP_Tools-215+-green?style=for-the-badge)
+![Plugins](https://img.shields.io/badge/Plugins-6-critical?style=for-the-badge)
 ![Licencia](https://img.shields.io/badge/licencia-MIT-orange?style=for-the-badge)
 
-**⚡ Entorno de Desarrollo Agéntico Completo — Claude Flow V3 + RuVector + Todos los Plugins ⚡**
+**⚡ Entorno de Desarrollo Agéntico Completo — Ruflo v3.5 + Beads + Worktrees + Agent Teams ⚡**
 
-[Inicio Rápido](#-inicio-rápido) • [Instalación](#-qué-se-instala) • [Skills](#-skills-41-totales) • [Plugins](#-plugins-15-totales) • [Comandos](#️-comandos-principales) • [Recursos](#-recursos)
+[Inicio Rápido](#-inicio-rápido) • [Instalación](#-qué-se-instala) • [Plugins](#-plugins-6) • [Comandos](#️-comandos-principales) • [Migración](#-migración-desde-v3x) • [Recursos](#-recursos)
 
 </div>
 
 ---
 
-## 🆕 Novedades en v3.4.0
+## 🆕 Novedades en v4.0.0
 
-| Métrica | v3.3.0 | v3.4.0 | Cambio |
+| Métrica | v3.4.1 | v4.0.0 | Cambio |
 |---------|--------|--------|--------|
-| Skills Nativas | 36 | **36** | — |
-| Plugins | 0 | **15** | +15 ⭐ |
-| Skills Personalizadas | 5 | **5** | — |
-| **Total Componentes** | **41** | **56** | +37% |
-| Aliases de Bash | 50+ | **70+** | +40% |
-| Pasos de Instalación | 18 | **19** | +1 |
+| Pasos de Instalación | 15 | **10** | -5 (consolidados) |
+| Paquetes Core | 4 separados | **1 (Ruflo)** | -75% |
+| Herramientas MCP | 175+ | **215+** | +23% |
+| Agentes | 60+ | **60+** | — |
+| Plugins | 15 | **6** | -9 (redundantes eliminados) |
+| Memoria entre sesiones | Ninguna | **Beads** | ⭐ Nuevo |
+| Aislamiento de agentes | Ninguno | **Git Worktrees** | ⭐ Nuevo |
+| Grafo de código | Ninguno | **GitNexus** | ⭐ Nuevo |
+| Skill UI/UX | ✓ | **✓** | Mantenida |
+| Statusline | ✓ | **✓** | Actualizada a 4.0 |
 
-### Adiciones Principales en v3.4.0
+### Cambios Principales
 
-- ✅ **15 Plugins de Claude Flow** — Cobertura completa de plugins para flujos de trabajo específicos por dominio
-- ✅ **Aliases para Plugins** — Comandos rápidos para todos los plugins
-- ✅ **70+ Aliases de Bash** — Extendidos con atajos específicos de plugins
+- ✅ **claude-flow → Ruflo v3.5** — Un solo `npx ruflo@latest init` reemplaza 4 instalaciones separadas
+- ✅ **Beads** — Memoria entre sesiones vía JSONL nativo de git
+- ✅ **GitNexus** — Grafo de conocimiento del código con servidor MCP y detección de radio de impacto
+- ✅ **Git Worktrees nativos** — Aislamiento por agente con namespacing automático de PG Vector
+- ✅ **Native Agent Teams** — Equipos de agentes experimentales de Anthropic
+- ✅ **6 plugins enfocados** — Eliminados 9 plugins redundantes o de dominio específico
+- ✅ **OpenSpec** — Desarrollo dirigido por especificaciones
+- ✅ **UI UX Pro Max** — Skill de diseño mantenida
+- ✅ **Statusline Pro v4.0** — Actualizada con branding TF 4.0
 
-### Desde v3.3.0
+### Eliminado (redundante con Ruflo v3.5 o fuera de alcance)
 
-- ✅ **36 Skills Nativas de Claude Flow** — Cobertura completa de todas las skills disponibles
-- ✅ **Sistema de Memoria** — Búsqueda vectorial HNSW, AgentDB, LearningBridge
-- ✅ **Registro de Servidor MCP** — 175+ herramientas registradas automáticamente
-- ✅ **Statusline Cyberpunk** — Visualización de estado de 15 componentes en 3 líneas
-- ✅ **Verificación Mejorada** — post-setup.sh verifica más de 100 elementos
+- `claude-flow@alpha`, `@ruvector/cli`, `@ruvector/sona`, `@claude-flow/browser` → bundled en Ruflo
+- 9 plugins: healthcare-clinical, financial-risk, legal-contracts, cognitive-kernel, hyperbolic-reasoning, quantum-optimizer, neural-coordination, prime-radiant, ruvector-upstream
+- Claudish, Agentic Jujutsu, Spec-Kit, agtrace, PAL MCP → bundled o redundante
+- HeroUI + Tailwind + TypeScript scaffold → fuera de alcance
+- Ars Contexta, OpenClaw Secure Stack → fuera de alcance
 
 ---
 
@@ -48,41 +57,43 @@
 
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
-║                       🚀 TURBO FLOW v3.4.0                           ║
+║                       🚀 TURBO FLOW v4.0                            ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  🖥️  INTERFAZ                                                         ║
+║  🖥️  INTERFAZ                                                        ║
 ║  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                  ║
-║  │ Claude Code  │ │ Navegador    │ │  Statusline  │                  ║
-║  │     CLI      │ │  Agente      │ │   Pro (15)   │                  ║
+║  │ Claude Code  │ │  Open WebUI  │ │  Statusline  │                  ║
+║  │     CLI      │ │  (4 instanc) │ │   Pro v4.0   │                  ║
 ║  └──────────────┘ └──────────────┘ └──────────────┘                  ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  🧠 MOTOR NEURAL: RuVector                                           ║
-║  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐             ║
-║  │  SONA  │ │  HNSW  │ │  MoE   │ │ EWC++  │ │  GNN   │             ║
-║  │<0.05ms │ │  150x  │ │8 expert│ │95% keep│ │ layers │             ║
-║  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘             ║
+║  🎯 ORQUESTACIÓN: Ruflo v3.5                                        ║
+║  60+ Agentes │ 215+ Herramientas MCP │ Skills auto-activadas        ║
+║  AgentDB v3 │ RuVector WASM │ SONA │ Routing 3 niveles             ║
+║  59 MCP Browser Tools │ Observabilidad │ Gating                     ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  🎯 ORQUESTACIÓN: Claude Flow V3                                     ║
-║  60+ Agentes  │  175+ Herramientas MCP  │  Workers en Segundo Plano ║
+║  🔌 PLUGINS (6)                                                      ║
+║  ┌──────────────────────────────────────────────────────────────┐    ║
+║  │ Agentic QE │ Code Intel │ Test Intel │ Perf │ Teammate │ Gas│    ║
+║  └──────────────────────────────────────────────────────────────┘    ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  📚 SKILLS (41 Totales)                                              ║
-║  ┌─────────────────────────────────────────────────────────────────┐ ║
-║  │ Core(6) │ AgentDB(4) │ GitHub(4) │ V3Dev(9) │ Reasoning(2)    │ ║
-║  │ FlowNexus(3) │ Adicionales(8) │ Personalizadas(5)              │ ║
-║  └─────────────────────────────────────────────────────────────────┘ ║
+║  🧠 INTELIGENCIA DE CÓDIGO: GitNexus                                 ║
+║  Grafo de conocimiento │ Radio de impacto │ Servidor MCP            ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  🔌 PLUGINS (15 Totales) ⭐ NUEVO                                    ║
-║  ┌─────────────────────────────────────────────────────────────────┐ ║
-║  │ QE(2) │ CodeIntel(1) │ Cognitivo(2) │ Perf(3) │ Neural(2)     │ ║
-║  │ Dominio(3) │ WASM(1) │ Upstream(1)                              │ ║
-║  └─────────────────────────────────────────────────────────────────┘ ║
+║  💾 MEMORIA (Tres Niveles)                                           ║
+║  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐                ║
+║  │    Beads     │ │ Native Tasks │ │   AgentDB    │                  ║
+║  │  proyecto/git│ │   sesión     │ │  + RuVector  │                  ║
+║  │    JSONL     │ │  ~/.claude/  │ │  WASM accel  │                  ║
+║  └──────────────┘ └──────────────┘ └──────────────┘                  ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  💾 SISTEMA DE MEMORIA                                               ║
-║  Búsqueda Vectorial HNSW │ AgentDB SQLite │ LearningBridge │ 3-Scop║
+║  🌳 AISLAMIENTO                                                     ║
+║  Git Worktrees por agente │ Schema PG Vector por worktree           ║
+║  Auto-indexación GitNexus │ Agent Teams (experimental)              ║
 ╠══════════════════════════════════════════════════════════════════════╣
-║  🧪 TESTING          │  🔒 SEGURIDAD       │  📋 ESPECIFICACIONES   ║
-║  Agentic QE          │  Security Analyzer  │  Spec-Kit              ║
-║  Verificación(0.95)  │  Codex (opcional)   │  OpenSpec              ║
+║  🎨 SKILLS                                                          ║
+║  UI UX Pro Max │ OpenSpec │ 36+ skills auto-activadas de Ruflo      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  🏗️  INFRAESTRUCTURA                                                ║
+║  DevPod │ Codespaces │ Rackspace Spot                               ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -120,16 +131,28 @@ sudo install devpod /usr/local/bin
 ### 🚀 Lanzar
 
 ```bash
-devpod up https://github.com/marcuspat/turbo-flow-claude --ide vscode
+# DevPod (recomendado)
+devpod up https://github.com/marcuspat/turbo-flow --ide vscode
+
+# Codespaces
+# Push a GitHub → Abrir en Codespace → ejecuta automáticamente
+
+# Manual
+git clone https://github.com/marcuspat/turbo-flow -b main
+cd turbo-flow/v4
+chmod +x .devcontainer/setup-turboflow-4.sh
+./.devcontainer/setup-turboflow-4.sh
+source ~/.bashrc
+turbo-status
 ```
 
 ---
 
 ## 📦 Qué Se Instala
 
-El script `setup.sh` instala la pila completa en **19 pasos automatizados**:
+El script `setup-turboflow-4.sh` instala la pila completa en **10 pasos automatizados**:
 
-### Paso 1️⃣ Herramientas de Compilación
+### Paso 1: Prerequisitos del Sistema
 
 | Paquete | Propósito |
 |:--------|:----------|
@@ -138,524 +161,108 @@ El script `setup.sh` instala la pila completa en **19 pasos automatizados**:
 | `git` | Control de versiones |
 | `curl` | Cliente HTTP |
 | `jq` | Procesador JSON (requerido para statusline) |
+| `Node.js 20+` | Runtime de JavaScript (requerido por Ruflo v3.5) |
 
----
-
-### Paso 2️⃣ Claude Flow V3 + RuVector
-
-> 🔄 **Delegado al instalador oficial** — maneja todo automáticamente
+### Paso 2: Claude Code + Ruflo v3.5
 
 | Componente | Propósito |
 |:-----------|:----------|
-| ![Node](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white) | Runtime de JavaScript |
-| ![Claude](https://img.shields.io/badge/Claude_Code-CLI-8B5CF6?logo=anthropic&logoColor=white) | Asistente de codificación IA |
-| `claude-flow@alpha` | 60+ agentes, 175+ herramientas MCP |
-| `ruvector` | Base de datos vectorial + GNN + auto-aprendizaje |
-| `@ruvector/cli` | Hooks e inteligencia |
-| `@ruvector/sona` | Arquitectura Neural Auto-Optimizada |
+| `Claude Code` | CLI de codificación agéntica de Anthropic |
+| `Ruflo v3.5` | Motor de orquestación — reemplaza claude-flow@alpha |
+| Ruflo MCP | Registrado como servidor MCP en Claude Code |
+| Ruflo Doctor | Diagnóstico automático y corrección |
 
----
+> Ruflo v3.5 incluye: AgentDB v3, RuVector WASM, SONA, 215 herramientas MCP, 60+ agentes, sistema de skills, routing de modelos en 3 niveles, 59 herramientas MCP de navegador, observabilidad, gating
 
-### Pasos 3️⃣-🔟 Skills Nativas de Claude Flow (36)
-
-#### Skills Core (6)
-
-| Skill | Propósito |
-|:------|:----------|
-| `sparc-methodology` | Metodología de desarrollo SPARC |
-| `swarm-orchestration` | Coordinación multi-agente (mesh/jerárquica) |
-| `github-code-review` | Revisiones de PR impulsadas por IA |
-| `agentdb-vector-search` | Búsqueda vectorial HNSW (150x más rápido) |
-| `pair-programming` | Codificación IA Driver/Navigator |
-| `hive-mind-advanced` | Inteligencia colectiva liderada por Reina |
-
-#### Skills AgentDB (4)
-
-| Skill | Propósito |
-|:------|:----------|
-| `agentdb-advanced` | Sincronización QUIC, multi-base de datos, métricas personalizadas |
-| `agentdb-learning` | 9 algoritmos RL (Q-Learning, Actor-Critic) |
-| `agentdb-memory-patterns` | Memoria de sesión, aprendizaje de patrones |
-| `agentdb-optimization` | Cuantización (4-32x reducción de memoria) |
-
-#### Skills GitHub (4)
-
-| Skill | Propósito |
-|:------|:----------|
-| `github-multi-repo` | Coordinación entre repositorios |
-| `github-project-management` | Issues, tableros de proyecto, sprints |
-| `github-release-management` | Versionado, despliegue, rollback |
-| `github-workflow-automation` | Automatización de pipelines CI/CD |
-
-#### Skills de Desarrollo V3 (9)
-
-| Skill | Propósito |
-|:------|:----------|
-| `v3-cli-modernization` | Prompts interactivos, descomposición de comandos |
-| `v3-core-implementation` | Dominios DDD, arquitectura limpia |
-| `v3-ddd-architecture` | Contextos delimitados, microkernel |
-| `v3-integration-deep` | Integración profunda con agentic-flow |
-| `v3-mcp-optimization` | Respuesta MCP sub-100ms |
-| `v3-memory-unification` | Backend AgentDB unificado |
-| `v3-performance-optimization` | Flash Attention (2.49x-7.47x) |
-| `v3-security-overhaul` | Remediación de CVEs |
-| `v3-swarm-coordination` | Mesh jerárquico de 15 agentes |
-
-#### Skills ReasoningBank (2)
-
-| Skill | Propósito |
-|:------|:----------|
-| `reasoningbank-agentdb` | Seguimiento de trayectorias, destilación de memoria |
-| `reasoningbank-intelligence` | Reconocimiento de patrones, meta-cognición |
-
-#### Skills Flow Nexus (3)
-
-| Skill | Propósito |
-|:------|:----------|
-| `flow-nexus-neural` | Entrenamiento de redes neuronales en sandboxes E2B |
-| `flow-nexus-platform` | Auth, sandboxes, despliegue de apps |
-| `flow-nexus-swarm` | Despliegue de swarm en la nube |
-
-#### Skills Adicionales (8)
-
-| Skill | Propósito |
-|:------|:----------|
-| `agentic-jujutsu` | Control de versiones resistente a cuántica |
-| `hooks-automation` | Hooks pre/post tarea, entrenamiento neural |
-| `performance-analysis` | Detección de cuellos de botella, profiling |
-| `skill-builder` | Crear skills personalizadas para Claude Code |
-| `stream-chain` | Pipelines de streaming multi-agente |
-| `swarm-advanced` | Flujos de trabajo distribuidos avanzados |
-| `verification-quality` | Puntuación de verdad (0.95), rollback automático |
-| `dual-mode` | Operaciones de modo dual |
-
----
-
-### Paso 1️⃣1️⃣ Plugins de Claude Flow (15) ⭐ NUEVO
-
-#### Plugins de Ingeniería de Calidad (2)
+### Paso 3: Plugins de Ruflo (6)
 
 | Plugin | Propósito |
 |:-------|:----------|
-| `agentic-qe` | Ingeniería de calidad autónoma, generación de tests |
-| `test-intelligence` | Selección inteligente de tests, optimización de cobertura |
+| **Agentic QE** | 58 agentes QE — TDD, cobertura, escaneo de seguridad, chaos engineering |
+| **Code Intelligence** | Análisis de código, detección de patrones, sugerencias de refactoring |
+| **Test Intelligence** | Generación de tests, análisis de brechas, detección de tests inestables |
+| **Perf Optimizer** | Profiling de rendimiento, detección de cuellos de botella |
+| **Teammate Plugin** | Puente entre Native Agent Teams y swarms de Ruflo (21 herramientas MCP) |
+| **Gastown Bridge** | Orquestación acelerada por WASM, sincronización con Beads (20 herramientas MCP) |
 
-#### Plugins de Inteligencia de Código (1)
+Además instala **OpenSpec** (`@fission-ai/openspec`) para desarrollo dirigido por especificaciones.
 
-| Plugin | Propósito |
-|:-------|:----------|
-| `code-intelligence` | Análisis AST, comprensión de código, refactoring |
-
-#### Plugins Cognitivos (2)
-
-| Plugin | Propósito |
-|:-------|:----------|
-| `cognitive-kernel` | Meta-cognición, auto-reflexión, razonamiento |
-| `hyperbolic-reasoning` | Geometría hiperbólica para razonamiento complejo |
-
-#### Plugins de Rendimiento (3)
-
-| Plugin | Propósito |
-|:-------|:----------|
-| `perf-optimizer` | Profiling de rendimiento, sugerencias de optimización |
-| `quantum-optimizer` | Algoritmos de optimización inspirados en cuántica |
-| `prime-radiant` | Modelado predictivo de rendimiento |
-
-#### Plugins Neurales (2)
-
-| Plugin | Propósito |
-|:-------|:----------|
-| `neural-coordination` | Coordinación neural multi-agente |
-| `ruvector-upstream` | Integración directa con RuVector |
-
-#### Plugins Específicos de Dominio (3)
-
-| Plugin | Propósito |
-|:-------|:----------|
-| `financial-risk` | Modelado financiero, evaluación de riesgos |
-| `healthcare-clinical` | Flujos de trabajo clínicos, terminología médica |
-| `legal-contracts` | Análisis de contratos, procesamiento de documentos legales |
-
-#### Plugins de Infraestructura (2)
-
-| Plugin | Propósito |
-|:-------|:----------|
-| `gastown-bridge` | Puente WASM para computación de alto rendimiento |
-| `teammate-plugin` | Colaboración en equipo, asignación de roles |
-
----
-
-### Paso 1️⃣2️⃣ Sistema de Memoria
-
-| Componente | Rendimiento |
-|:-----------|:------------|
-| **Búsqueda Vectorial HNSW** | 150x-12,500x más rápido que estándar |
-| **AgentDB** | Basado en SQLite con modo WAL, búsqueda <100µs |
-| **LearningBridge** | Sincronización bidireccional con Claude Code |
-| **Memoria 3-Scope** | Ámbito proyecto/local/usuario |
-
----
-
-### Paso 1️⃣3️⃣ Registro de Servidor MCP
-
-Registro automático del servidor MCP de Claude Flow:
-
-| Categoría de Herramienta | Cantidad |
-|:-------------------------|:---------|
-| Herramientas de agente | 20+ |
-| Herramientas de memoria | 15+ |
-| Herramientas de swarm | 10+ |
-| Herramientas de GitHub | 10+ |
-| Herramientas de navegador | 59 |
-| **Total** | **175+** |
-
----
-
-### Pasos 1️⃣4️⃣-1️⃣6️⃣ Skills Personalizadas (5)
-
-| Skill | Fuente | Propósito |
-|:------|:-------|:----------|
-| 🔒 `security-analyzer` | GitHub (Cornjebus) | Escaneo de vulnerabilidades de seguridad |
-| 🎨 `ui-ux-pro-max` | uipro-cli | Asistencia de diseño UI/UX |
-| 🌳 `worktree-manager` | GitHub (Wirasm) | Gestión de worktrees de git |
-| 🚀 `vercel-deploy` | Vercel Labs | Despliegue a Vercel con un comando |
-| 📊 `rUv_helpers` | GitHub (Jordi-Izquierdo) | Visualización de RuVector |
-
----
-
-### Paso 1️⃣7️⃣ Statusline Pro
-
-Statusline cyberpunk de 15 componentes en 3 líneas:
-
-```
-LÍNEA 1: 📁 Proyecto │ 🤖 Modelo │ 🌿 Branch │ 📟 Versión │ 🎨 Estilo
-LÍNEA 2: 📊 Tokens │ 🧠 Contexto │ 💾 Cache │ 💰 Costo │ 🔥 Quema │ ⏱️ Tiempo
-LÍNEA 3: ➕ Añadido │ ➖ Eliminado │ 📂 Git │ 🌳 Worktree │ 🔌 MCP │ ✅ Estado
-```
-
----
-
-### Paso 1️⃣8️⃣ Configuración del Workspace
+### Paso 4: UI UX Pro Max Skill
 
 | Componente | Propósito |
 |:-----------|:----------|
-| 📁 Directorios | `src/` `tests/` `docs/` `scripts/` `config/` `plans/` |
-| ⚙️ `tsconfig.json` | TypeScript (ES2022, ESNext) |
-| 🎨 `@heroui/react` | Librería de componentes UI |
-| 🎬 `framer-motion` | Animaciones |
-| 🌊 `tailwindcss` | CSS utilitario |
+| `uipro-cli` | Skill de diseño — patrones de componentes, accesibilidad, layouts responsivos, tokens de diseño |
+
+### Paso 5: GitNexus (Grafo de Conocimiento del Código)
+
+| Componente | Propósito |
+|:-----------|:----------|
+| `GitNexus` | Indexa dependencias, cadenas de llamadas, flujos de ejecución |
+| GitNexus MCP | Registrado como servidor MCP — detección de radio de impacto |
+
+### Paso 6: Beads (Memoria entre Sesiones)
+
+| Componente | Propósito |
+|:-----------|:----------|
+| `beads-cli` | Memoria de proyecto en JSONL nativo de git — issues, decisiones, bloqueos |
+
+### Paso 7: Workspace + Agent Teams
+
+| Componente | Propósito |
+|:-----------|:----------|
+| Directorios | `src/` `tests/` `docs/` `scripts/` `config/` `plans/` |
+| Agent Teams | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` habilitado |
+
+### Paso 8: Statusline Pro v4.0
+
+Statusline de 3 líneas con 15 componentes:
+
+```
+LÍNEA 1: [Project] nombre | [Model] Sonnet | [Git] branch | [TF] 4.0 | [SID] abc123
+LÍNEA 2: [Tokens] 50k/200k | [Ctx] #######--- 65% | [Cache] 42% | [Cost] $1.23 | [Time] 5m
+LÍNEA 3: [+150] [-50] | [READY]
+```
+
+### Paso 9: Generación de CLAUDE.md
+
+Genera el archivo de contexto del workspace con:
+- Protocolo de memoria de 3 niveles (Beads → Native Tasks → AgentDB)
+- Reglas de aislamiento (un worktree por agente)
+- Reglas de Agent Teams (máx 3 compañeros, profundidad de recursión 2)
+- Niveles de routing de modelos (Opus/Sonnet/Haiku)
+- Referencia de plugins
+- Guardrails de costo ($15/hr)
+
+### Paso 10: Aliases + Entorno + Registro MCP
+
+Más de 50 aliases organizados por familia: `rf-*`, `ruv-*`, `mem-*`, `bd-*`, `wt-*`, `gnx-*`, `aqe-*`, `os-*`, `hooks-*`, `neural-*`, `turbo-status`, `turbo-help`
 
 ---
 
-### Paso 1️⃣9️⃣ Aliases de Bash (70+)
+## 🔌 Plugins (6)
 
-<table>
-<tr>
-<td>
+| Plugin | Herramientas MCP | Propósito |
+|:-------|:-----------------|:----------|
+| **Agentic QE** | 16 | 58 agentes QE, TDD, cobertura, seguridad, chaos engineering |
+| **Code Intelligence** | — | Análisis de código, patrones, refactoring |
+| **Test Intelligence** | — | Generación de tests, brechas, tests inestables |
+| **Perf Optimizer** | — | Profiling, cuellos de botella, optimización |
+| **Teammate Plugin** | 21 | Puente Agent Teams ↔ Ruflo swarms, routing semántico |
+| **Gastown Bridge** | 20 | Orquestación WASM, sincronización Beads, convoys |
 
-**🧠 RuVector**
-```
-ruv, ruv-stats, ruv-route
-ruv-remember, ruv-recall
-ruv-learn, ruv-init, ruv-viz
-```
+### Plugins Eliminados (9)
 
-</td>
-<td>
-
-**🎯 Claude Flow**
-```
-cf, cf-init, cf-wizard
-cf-swarm, cf-mesh, cf-daemon
-cf-doctor, cf-mcp, cf-memory
-cf-plugin
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**📚 Skills Core**
-```
-cf-sparc, cf-swarm-skill
-cf-hive, cf-pair
-cf-gh-review, cf-agentdb-search
-```
-
-</td>
-<td>
-
-**🗄️ AgentDB**
-```
-cf-agentdb-advanced
-cf-agentdb-learning
-cf-agentdb-memory
-cf-agentdb-opt
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**🐙 GitHub**
-```
-cf-gh-multi, cf-gh-project
-cf-gh-release, cf-gh-workflow
-```
-
-</td>
-<td>
-
-**🔧 Desarrollo V3**
-```
-cf-v3-cli, cf-v3-core
-cf-v3-ddd, cf-v3-perf
-cf-v3-security
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**🔌 Plugins - QE**
-```
-plugin-qe, plugin-test-intel
-```
-
-</td>
-<td>
-
-**🔌 Plugins - Cognitivo**
-```
-plugin-cognitive
-plugin-hyperbolic
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**🔌 Plugins - Perf**
-```
-plugin-perf, plugin-quantum
-plugin-prime
-```
-
-</td>
-<td>
-
-**🔌 Plugins - Dominio**
-```
-plugin-financial
-plugin-healthcare
-plugin-legal
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**💾 Memoria y Neural**
-```
-mem-search, mem-vsearch
-mem-stats, neural-train
-neural-patterns
-```
-
-</td>
-<td>
-
-**🌐 Navegador**
-```
-cfb-open, cfb-snap
-cfb-click, cfb-fill
-cfb-trajectory, cfb-learn
-```
-
-</td>
-</tr>
-<tr>
-<td>
-
-**🔄 Flujo de Trabajo**
-```
-wt-status, wt-clean
-wt-create, deploy
-deploy-preview
-```
-
-</td>
-<td>
-
-**🧪 Testing y Calidad**
-```
-aqe, aqe-generate, aqe-gate
-cf-verify, cf-perf-analyze
-```
-
-</td>
-</tr>
-</table>
-
----
-
-## 📚 Skills (41 Totales)
-
-### Skills por Categoría
-
-| Categoría | Cantidad | Skills |
-|:----------|:---------|:-------|
-| Core | 6 | sparc, swarm, hive, pair, gh-review, agentdb-search |
-| AgentDB | 4 | advanced, learning, memory-patterns, optimization |
-| GitHub | 4 | multi-repo, project-mgmt, release, workflow |
-| Desarrollo V3 | 9 | cli, core, ddd, integration, mcp, memory, perf, security, swarm |
-| ReasoningBank | 2 | agentdb, intelligence |
-| Flow Nexus | 3 | neural, platform, swarm |
-| Adicionales | 8 | jujutsu, hooks, perf-analysis, skill-builder, stream, swarm-adv, verify, dual |
-| Personalizadas | 5 | security-analyzer, ui-ux-pro-max, worktree-manager, vercel-deploy, rUv_helpers |
-
----
-
-## 🔌 Plugins (15 Totales)
-
-### Plugins por Categoría
-
-| Categoría | Cantidad | Plugins |
-|:----------|:---------|:--------|
-| Ingeniería de Calidad | 2 | agentic-qe, test-intelligence |
-| Inteligencia de Código | 1 | code-intelligence |
-| Cognitivo | 2 | cognitive-kernel, hyperbolic-reasoning |
-| Rendimiento | 3 | perf-optimizer, quantum-optimizer, prime-radiant |
-| Neural | 2 | neural-coordination, ruvector-upstream |
-| Específico de Dominio | 3 | financial-risk, healthcare-clinical, legal-contracts |
-| Infraestructura | 2 | gastown-bridge, teammate-plugin |
-
-### Comandos Rápidos de Plugins
-
-```bash
-# Ingeniería de Calidad
-plugin-qe              # Ejecutar agentic-qe
-plugin-test-intel      # Ejecutar test-intelligence
-
-# Inteligencia de Código
-plugin-code-intel      # Ejecutar code-intelligence
-
-# Cognitivo
-plugin-cognitive       # Ejecutar cognitive-kernel
-plugin-hyperbolic      # Ejecutar hyperbolic-reasoning
-
-# Rendimiento
-plugin-perf            # Ejecutar perf-optimizer
-plugin-quantum         # Ejecutar quantum-optimizer
-plugin-prime           # Ejecutar prime-radiant
-
-# Neural
-plugin-neural          # Ejecutar neural-coordination
-
-# Dominio
-plugin-financial       # Ejecutar financial-risk
-plugin-healthcare      # Ejecutar healthcare-clinical
-plugin-legal           # Ejecutar legal-contracts
-```
-
----
-
-## 📂 Estructura de Directorios
-
-```
-📁 ~/.claude/
-├── 📁 skills/
-│   ├── 📚 Core (6)
-│   │   ├── sparc-methodology/
-│   │   ├── swarm-orchestration/
-│   │   ├── github-code-review/
-│   │   ├── agentdb-vector-search/
-│   │   ├── pair-programming/
-│   │   └── hive-mind-advanced/
-│   ├── 🗄️ AgentDB (4)
-│   ├── 🐙 GitHub (4)
-│   ├── 🔧 Desarrollo V3 (9)
-│   ├── 🧠 ReasoningBank (2)
-│   ├── ☁️ Flow Nexus (3)
-│   ├── ⚡ Adicionales (8)
-│   └── 🎨 Personalizadas (5)
-│       ├── security-analyzer/
-│       ├── ui-ux-pro-max/
-│       ├── worktree-manager/
-│       ├── vercel-deploy/
-│       └── rUv_helpers/
-├── 📁 commands/
-│   └── 📝 prd2build.md
-├── ⚙️ settings.json
-├── 📊 turbo-flow-statusline.sh
-└── 📁 statusline-pro/
-
-📁 ~/.config/claude/
-└── ⚙️ mcp.json (175+ herramientas)
-
-📁 ~/.codex/
-└── 📄 instructions.md
-
-📁 $WORKSPACE/
-├── 📁 src/
-├── 📁 tests/
-├── 📁 docs/
-├── 📁 scripts/
-├── 📁 config/
-├── 📁 plans/
-├── 📁 .claude-flow/
-│   ├── 📁 memory/
-│   │   └── 🗄️ agent.db
-│   ├── 📁 plugins/          ⭐ NUEVO
-│   │   ├── agentic-qe/
-│   │   ├── code-intelligence/
-│   │   ├── cognitive-kernel/
-│   │   ├── financial-risk/
-│   │   ├── gastown-bridge/
-│   │   ├── healthcare-clinical/
-│   │   ├── hyperbolic-reasoning/
-│   │   ├── legal-contracts/
-│   │   ├── neural-coordination/
-│   │   ├── perf-optimizer/
-│   │   ├── prime-radiant/
-│   │   ├── quantum-optimizer/
-│   │   ├── ruvector-upstream/
-│   │   ├── teammate-plugin/
-│   │   └── test-intelligence/
-│   └── ⚙️ config.json
-├── 📁 node_modules/@heroui/
-├── 🤝 AGENTS.md
-├── 📦 package.json
-├── ⚙️ tsconfig.json
-├── 🌊 tailwind.config.js
-└── 📝 .claude-flow-prompts.md
-```
-
----
-
-## ✅ Post-Instalación
-
-```bash
-# 1️⃣ Recargar shell
-source ~/.bashrc
-
-# 2️⃣ Verificar instalación
-turbo-status
-
-# 3️⃣ Obtener ayuda
-turbo-help
-
-# 4️⃣ Ejecutar verificación post-setup
-./post-setup.sh
-
-# 5️⃣ Instalar Codex (opcional)
-npm install -g @openai/codex && codex login
-```
+| Plugin | Razón |
+|:-------|:------|
+| healthcare-clinical | Dominio específico (HIPAA/FHIR) — no necesario |
+| financial-risk | Dominio específico (PCI-DSS/SOX) — no necesario |
+| legal-contracts | Dominio específico — no necesario |
+| cognitive-kernel | Redundante con sistema neural de Ruflo |
+| hyperbolic-reasoning | Redundante con embeddings hiperbólicos de RuVector WASM |
+| quantum-optimizer | Redundante con EWC++ y RVFOptimizer de Ruflo |
+| neural-coordination | Redundante con coordinación de swarms de Ruflo |
+| prime-radiant | Nicho — interpretabilidad matemática |
+| ruvector-upstream | Redundante — RuVector bundled en Ruflo v3.5 |
 
 ---
 
@@ -665,179 +272,121 @@ npm install -g @openai/codex && codex login
 <summary><b>📊 Estado y Ayuda</b></summary>
 
 ```bash
-turbo-status    # Verificar todos los 56 componentes + 100+ elementos
-turbo-help      # Referencia completa de comandos
-cf-doctor       # Verificación de salud de Claude Flow
+turbo-status         # Verificar todos los componentes
+turbo-help           # Referencia completa de comandos
+rf-doctor            # Verificación de salud de Ruflo
+rf-plugins           # Listar plugins instalados
 ```
 </details>
 
 <details>
-<summary><b>🧠 RuVector</b></summary>
+<summary><b>🎯 Orquestación (Ruflo)</b></summary>
 
 ```bash
-ruv                  # Iniciar RuVector
-ruv-stats            # Estadísticas de aprendizaje
-ruv-route "tarea"    # Enrutar al mejor agente
-ruv-remember "ctx"   # Almacenar en memoria
-ruv-recall "query"   # Buscar en memoria
-ruv-viz              # Iniciar dashboard de visualización
+rf-wizard            # Configuración interactiva
+rf-swarm             # Swarm jerárquico (8 agentes máx)
+rf-mesh              # Swarm en mesh
+rf-ring              # Swarm en anillo
+rf-star              # Swarm en estrella
+rf-spawn coder       # Crear agente coder
+rf-daemon            # Iniciar workers en segundo plano
+rf-status            # Estado de Ruflo
 ```
 </details>
 
 <details>
-<summary><b>🎯 Claude Flow V3</b></summary>
+<summary><b>💾 Memoria</b></summary>
 
 ```bash
-cf-init              # Inicializar workspace
-cf-wizard            # Configuración interactiva
-cf-swarm             # Swarm jerárquico
-cf-mesh              # Swarm en mesh
-cf-doctor            # Verificación de salud
-cf-daemon            # Iniciar daemon
-cf-mcp               # Iniciar servidor MCP
-cf-memory            # Operaciones de memoria
-cf-plugin            # Gestión de plugins
-```
-</details>
-
-<details>
-<summary><b>📚 Skills Core</b></summary>
-
-```bash
-cf-sparc             # Metodología SPARC
-cf-swarm-skill       # Orquestación de swarm
-cf-hive              # Coordinación hive mind
-cf-pair              # Programación en pareja
-cf-gh-review         # Revisión de código GitHub
-cf-agentdb-search    # Búsqueda vectorial
-```
-</details>
-
-<details>
-<summary><b>🗄️ Operaciones AgentDB</b></summary>
-
-```bash
-cf-agentdb-advanced  # Sincronización QUIC, multi-db
-cf-agentdb-learning  # Algoritmos RL
-cf-agentdb-memory    # Patrones de memoria
-cf-agentdb-opt       # Optimización
-```
-</details>
-
-<details>
-<summary><b>🐙 Integración GitHub</b></summary>
-
-```bash
-cf-gh-multi          # Coordinación multi-repo
-cf-gh-project        # Gestión de proyectos
-cf-gh-release        # Gestión de releases
-cf-gh-workflow       # Automatización CI/CD
-```
-</details>
-
-<details>
-<summary><b>🔌 Plugins</b></summary>
-
-```bash
-# Ingeniería de Calidad
-plugin-qe            # Agentic QE
-plugin-test-intel    # Inteligencia de tests
-
-# Inteligencia de Código
-plugin-code-intel    # Comprensión de código
-
-# Cognitivo
-plugin-cognitive     # Kernel cognitivo
-plugin-hyperbolic    # Razonamiento hiperbólico
-
-# Rendimiento
-plugin-perf          # Optimizador de rendimiento
-plugin-quantum       # Optimizador cuántico
-plugin-prime         # Prime radiant
-
-# Neural
-plugin-neural        # Coordinación neural
-
-# Específico de Dominio
-plugin-financial     # Riesgo financiero
-plugin-healthcare    # Clínico de salud
-plugin-legal         # Contratos legales
-```
-</details>
-
-<details>
-<summary><b>💾 Memoria y Neural</b></summary>
-
-```bash
-mem-search           # Buscar en memoria
-mem-vsearch          # Búsqueda vectorial (HNSW)
-mem-vstore           # Almacenar vector
+bd-ready             # Estado del proyecto (inicio de sesión)
+bd-add               # Registrar issue/decisión/bloqueo
+bd-list              # Listar beads
+ruv-remember K V     # Almacenar en AgentDB
+ruv-recall Q         # Buscar en AgentDB
+mem-search Q         # Buscar en memoria de Ruflo
 mem-stats            # Estadísticas de memoria
-neural-train         # Entrenar neural
-neural-patterns      # Patrones neurales
-neural-predict       # Predecir
 ```
 </details>
 
 <details>
-<summary><b>🌐 Automatización de Navegador</b></summary>
+<summary><b>🌳 Aislamiento</b></summary>
 
 ```bash
-cfb-open <url>       # Abrir URL vía MCP
-cfb-snap             # Tomar snapshot
-cfb-click            # Clic en elemento
-cfb-fill             # Llenar formulario
-cfb-trajectory       # Iniciar aprendizaje de trayectoria
-cfb-learn            # Guardar patrón
+wt-add agent-1       # Crear worktree para agente
+wt-remove agent-1    # Limpiar worktree
+wt-list              # Mostrar worktrees activos
+wt-clean             # Eliminar worktrees obsoletos
 ```
 </details>
 
 <details>
-<summary><b>🔄 Flujo de Trabajo</b></summary>
+<summary><b>🧪 Calidad y Testing</b></summary>
 
 ```bash
-wt-status            # Estado de worktree
-wt-clean             # Limpiar worktrees
-wt-create            # Crear worktree
-deploy               # Desplegar a Vercel
-deploy-preview       # Desplegar con URL de preview
-```
-</details>
-
-<details>
-<summary><b>🧪 Testing y Calidad</b></summary>
-
-```bash
-aqe-generate         # Generar tests
+aqe-generate         # Generar tests (plugin Agentic QE)
 aqe-gate             # Puerta de calidad
-cf-verify            # Puntuación de verdad
-cf-perf-analyze      # Análisis de rendimiento
+os-init              # Inicializar OpenSpec
+os                   # Ejecutar OpenSpec
+```
+</details>
+
+<details>
+<summary><b>🧠 Inteligencia</b></summary>
+
+```bash
+hooks-train          # Pretrain profundo en codebase
+hooks-route          # Enrutar tarea al agente óptimo
+neural-train         # Entrenar patrones neurales
+neural-patterns      # Ver patrones aprendidos
+gnx-analyze          # Indexar repo en grafo de conocimiento
+gnx-serve            # Iniciar servidor web local
+gnx-wiki             # Generar wiki desde grafo
 ```
 </details>
 
 ---
 
-## 📄 Documentación
+## 🔄 Migración desde v3.x
 
-| Documento | Descripción |
-|:----------|:------------|
-| `RELEASE_NOTES_v3.4.0.md` | Notas de versión completas |
-| `Turbo_Flow_v3.4.0_Scripts_Analysis.md` | Análisis técnico |
-| `.claude-flow-prompts.md` | 35+ prompts de uso |
+1. Los aliases `cf-*` ya no existen → usa `rf-*`
+2. Los slash commands (`/sparc`, etc.) ya no existen → Ruflo auto-activa skills
+3. Ejecuta `bd init` en tus repos para habilitar memoria Beads
+4. Ejecuta `npx gitnexus analyze` en tus repos para construir el grafo
+5. El directorio `v3/` preserva todo — nada fue eliminado
+
+| v3.4.1 | v4.0.0 |
+|:-------|:-------|
+| `cf-init` | `rf-init` |
+| `cf-swarm` | `rf-swarm` |
+| `cf-doctor` | `rf-doctor` |
+| `cf-mcp` | Automático vía `rf-wizard` |
+| `mem-search` | `mem-search` (sin cambio) |
+| `cfb-open` | Via herramientas MCP del navegador de Ruflo |
+| Sin memoria entre sesiones | `bd-ready`, `bd-add` |
+| Sin aislamiento | `wt-add`, `wt-remove` |
+| Sin grafo de código | `gnx-analyze` |
 
 ---
 
-## 🔗 Recursos
+## 📂 Estructura del Repositorio
 
-| Recurso | Enlace |
-|:--------|:-------|
-| 🎯 Claude Flow V3 | [![GitHub](https://img.shields.io/badge/GitHub-ruvnet/claude--flow-181717?logo=github)](https://github.com/ruvnet/claude-flow) |
-| 🧠 RuVector | [![GitHub](https://img.shields.io/badge/GitHub-ruvnet/ruvector-181717?logo=github)](https://github.com/ruvnet/ruvector) |
-| 🚀 Turbo Flow | [![GitHub](https://img.shields.io/badge/GitHub-marcuspat/turbo--flow--claude-181717?logo=github)](https://github.com/marcuspat/turbo-flow-claude) |
-| 🧪 Agentic QE | [![npm](https://img.shields.io/badge/npm-agentic--qe-CB3837?logo=npm)](https://npmjs.com/package/agentic-qe) |
-| 🎨 HeroUI | [![Sitio Web](https://img.shields.io/badge/Sitio_Web-heroui.com-000000?logo=vercel)](https://heroui.com) |
-| 🔒 Security Analyzer | [![GitHub](https://img.shields.io/badge/GitHub-Cornjebus/security--analyzer-181717?logo=github)](https://github.com/Cornjebus/security-analyzer) |
-| 📋 Spec-Kit | [![GitHub](https://img.shields.io/badge/GitHub-github/spec--kit-181717?logo=github)](https://github.com/github/spec-kit) |
+```
+turbo-flow/
+├── v3/                          ← archivado (era Claude Flow)
+├── v4/                          ← desarrollo activo (era Ruflo)
+│   ├── .devcontainer/
+│   │   ├── devcontainer.json
+│   │   ├── setup-turboflow-4.sh
+│   │   └── post-setup-turboflow-4.sh
+│   ├── scripts/
+│   │   └── generate-claude-md.sh
+│   ├── CLAUDE.md
+│   └── README.md
+├── docs/
+│   └── migration-v3-to-v4.md
+├── CLAUDE.md                    ← raíz, apunta a v4/
+└── README.md
+```
 
 ---
 
@@ -845,11 +394,22 @@ cf-perf-analyze      # Análisis de rendimiento
 
 | Versión | Fecha | Cambios |
 |:--------|:------|:--------|
-| **v3.4.0** | Feb 2025 | **Completo + Plugins**: 36 skills, 15 plugins, 5 personalizadas, 70+ aliases |
-| v3.3.0 | Feb 2025 | Instalación completa: 41 skills, sistema de memoria, registro MCP, 50+ aliases |
-| v3.2.0 | Feb 2025 | Añadidas 6 skills nativas, init de memoria, registro MCP |
-| v3.1.0 | Feb 2025 | Añadido worktree-manager, vercel-deploy, statusline pro |
+| **v4.0.0** | Mar 2026 | **Migración a Ruflo**: Ruflo v3.5, Beads, GitNexus, Worktrees, Agent Teams, 6 plugins, UI UX Pro Max, OpenSpec |
+| v3.4.1 | Feb 2025 | Fixes: skill install removido, plugins command, npm fallback |
+| v3.4.0 | Feb 2025 | Completo + Plugins: 36 skills, 15 plugins |
+| v3.3.0 | Feb 2025 | Instalación completa: 41 skills, memoria, MCP |
 | v3.0.0 | Feb 2025 | Versión inicial con Claude Flow V3 |
+
+---
+
+## 🔗 Recursos
+
+| Recurso | Enlace |
+|:--------|:-------|
+| 🎯 Ruflo | [GitHub: ruvnet/ruflo](https://github.com/ruvnet/ruflo) |
+| 🚀 Turbo Flow | [GitHub: marcuspat/turbo-flow](https://github.com/marcuspat/turbo-flow) |
+| 📋 OpenSpec | [npm: @fission-ai/openspec](https://npmjs.com/package/@fission-ai/openspec) |
+| 🧪 Agentic QE | [npm: agentic-qe](https://npmjs.com/package/agentic-qe) |
 
 ---
 
@@ -857,8 +417,6 @@ cf-perf-analyze      # Análisis de rendimiento
 
 **Construido con 💜 para el ecosistema de Claude**
 
-![Versión](https://img.shields.io/badge/v3.4.0-2025--02-blue?style=flat-square)
-
-*Todas las 41 skills. Todos los 15 plugins. Todas las 175+ herramientas MCP. Todos los 70+ aliases. Un solo comando.*
+*Ruflo v3.5. 215+ herramientas MCP. 6 plugins. Beads. GitNexus. Worktrees. Un solo comando.*
 
 </div>
