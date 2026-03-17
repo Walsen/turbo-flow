@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # =============================================================================
 # TurboFlow 4.0 Setup Script (FIXED)
 # Replaces: .devcontainer/setup.sh from v3.4.1
@@ -7,7 +7,7 @@
 #   FIX 1: Ruflo init now handles "already initialized" gracefully (was crashing
 #          the entire script because non-zero exit + set -e)
 #   FIX 2: All claude mcp commands wrapped to never fail under set -e
-#   FIX 3: npx ruflo doctor wrapped properly
+#   FIX 3: npx ruflo doctor -- removed --fix flag (interactive prompt hang), added timeout 60
 #   FIX 4: Plugin install arithmetic fixed (PLUGINS_INSTALLED increment)
 #   FIX 5: Step numbering corrected (was two "STEP 5"s, steps 6-10 misnumbered)
 #   FIX 6: node -e for settings.json uses proper quoting
@@ -177,7 +177,7 @@ timeout 30 claude mcp add ruflo -- npx -y ruflo@latest 2>/dev/null \
     || warn "Ruflo MCP registration skipped (configure manually if needed)"
 
 # ── FIX 3: Doctor check — guarded ──
-npx ruflo doctor --fix >> "$LOG" 2>&1 \
+timeout 60 npx ruflo doctor >> "$LOG" 2>&1 \
     && ok "Ruflo doctor passed" \
     || warn "Ruflo doctor had issues (check $LOG)"
 
