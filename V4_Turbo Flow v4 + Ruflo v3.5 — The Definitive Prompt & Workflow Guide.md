@@ -219,7 +219,7 @@ If anything fails, run `rf-doctor` (native: `npx ruflo@latest doctor --fix`) to 
 |------|--------|---------------|------------------------|
 | **1. Project** | Beads (`bd`) | Tasks, bugs, features, epics, dependencies, blockers | `bd-ready` → `bd ready --json` · `bd-add` → `bd create "..." -t task -p N` · `bd-list` → `bd list` · `bd close`, `bd show`, `bd dep` (native only) |
 | **2. Session** | Native Tasks | Current session checklist, active work | Managed by Claude Code automatically |
-| **3. Learned** | AgentDB | Patterns, routing weights, vector embeddings | `ruv-remember K V` → `npx ruflo memory store --key "K" --value "V"` · `ruv-recall Q` → `npx ruflo memory search --query "Q"` · `mem-search Q` → `npx ruflo memory search --query "Q"` · `mem-stats` → `npx ruflo memory stats` |
+| **3. Learned** | AgentDB | Patterns, routing weights, vector embeddings | `mem-store K V` → `npx ruflo memory store --key "K" --value "V"` · `mem-search Q` → `npx ruflo memory search --query "Q"` · `mem-stats` → `npx ruflo memory stats` |
 
 ### Decision Tree
 
@@ -231,7 +231,7 @@ Is this about what I'm doing right now in this session?
   → Native Tasks
 
 Is this a learned pattern / routing weight / reusable knowledge?
-  → AgentDB (automatic via Ruflo, or manual via ruv-remember)
+  → AgentDB (automatic via Ruflo, or manual via mem-store)
 ```
 
 ### Session Protocol (mandatory)
@@ -420,7 +420,7 @@ aqe-generate && aqe-gate   # QE gate — environment must be consistent
 npx ruflo@latest hooks pretrain
 npx gitnexus analyze
 npx ruflo@latest neural train
-npx @agentic-qe/v3 generate && npx @agentic-qe/v3 gate
+npx ruflo@latest mcp call aqe/generate-tests && npx ruflo@latest mcp call aqe/evaluate-quality-gate
 
 bd create "Environment customized for [project name] — QE passed" -t task -p 2
 ```
@@ -888,8 +888,7 @@ I need to understand [module/file/directory]:
 
 ```bash
 # Confirmed TF aliases (from TF README)
-ruv-remember KEY VALUE    # Store key-value in AgentDB
-ruv-recall QUERY          # Query AgentDB
+mem-store KEY VALUE       # Store key-value in AgentDB
 mem-search QUERY          # Search Ruflo memory (all tiers)
 mem-stats                 # Memory statistics
 
@@ -906,8 +905,8 @@ Store these development patterns in AgentDB for future reference:
 - Pattern: "api-error" → "RFC 7807 problem details, error codes enum, i18n messages"
 - Pattern: "db-migration" → "Knex migrations, seed data, rollback scripts, zero-downtime"
 
-Use ruv-remember for each. Tag by domain (auth, api, db).
-Later I'll use ruv-recall and mem-search to retrieve them.
+Use mem-store for each. Tag by domain (auth, api, db).
+Later I'll use mem-search to retrieve them.
 ```
 
 ### Prompt: Semantic Code Search
@@ -1194,7 +1193,7 @@ Add a new [GET/POST/PUT/DELETE] endpoint for [resource]:
    - Implement: controller, service, repository layers
    - Review: security, error handling, rate limiting
 4. Update OpenAPI spec
-5. Record the pattern in AgentDB: ruv-remember "api-[resource]" "[pattern details]"
+5. Record the pattern in AgentDB: mem-store "api-[resource]" "[pattern details]"
 ```
 
 ### Prompt: Add Database Migration
@@ -1371,7 +1370,7 @@ Profile and optimize [module/endpoint/page]:
    - Implement with TDD (test before and after)
    - Measure: latency, throughput, memory, CPU
 4. Compare before/after metrics
-5. Record optimizations in AgentDB: ruv-remember "perf-[area]" "[details]"
+5. Record optimizations in AgentDB: mem-store "perf-[area]" "[details]"
 ```
 
 ### Prompt: Database Query Optimization
@@ -2020,7 +2019,7 @@ After Phase 1 planning, replace the generic CLAUDE.md with this structure:
 
 ```
 BOOT:       source ~/.bashrc → rf-doctor (npx ruflo doctor --fix) → bd ready → gnx-analyze (npx gitnexus analyze) → hooks-train (npx ruflo hooks pretrain) → rf-daemon (npx ruflo daemon start) → turbo-status
-PRD:        generate PRD → save to plans/research/PLAN.md → aqe-gate (npx @agentic-qe/v3 gate)
+PRD:        generate PRD → save to plans/research/PLAN.md → aqe-gate (npx ruflo@latest mcp call aqe/evaluate-quality-gate)
 PLAN:       review /plans/research → create ADR/DDD → aqe-gate per ADR → aqe-gate on full plan
 CUSTOMIZE:  update CLAUDE.md → update statusline → hooks-train → gnx-analyze → aqe-gate
 EXECUTE:    rf-swarm (npx ruflo swarm init) → agents in worktrees (git worktree add) → aqe-gate per context → aqe-gate full codebase
@@ -2050,8 +2049,7 @@ HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze
 | `rf-init` | `npx ruflo@latest init` |
 | `rf-plugins` | `npx ruflo@latest plugins list --installed` |
 | **Memory** | |
-| `ruv-remember KEY VALUE` | `npx ruflo@latest memory store --key "KEY" --value "VALUE"` |
-| `ruv-recall QUERY` | `npx ruflo@latest memory search --query "QUERY"` |
+| `mem-store KEY VALUE` | `npx ruflo@latest memory store --key "KEY" --value "VALUE"` |
 | `mem-search QUERY` | `npx ruflo@latest memory search --query "QUERY"` |
 | `mem-stats` | `npx ruflo@latest memory stats` |
 | **Beads** | |
@@ -2068,8 +2066,8 @@ HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze
 | `gnx-serve` | `npx gitnexus serve` |
 | `gnx-wiki` | `npx gitnexus wiki` |
 | **Quality** | |
-| `aqe-generate` | `npx @agentic-qe/v3 generate` (or via MCP) |
-| `aqe-gate` | `npx @agentic-qe/v3 gate` (or via MCP) |
+| `aqe-generate` | `npx ruflo@latest mcp call aqe/generate-tests` |
+| `aqe-gate` | `npx ruflo@latest mcp call aqe/evaluate-quality-gate` |
 | **OpenSpec** | |
 | `os-init` | `openspec init` |
 | `os` | `openspec` |
