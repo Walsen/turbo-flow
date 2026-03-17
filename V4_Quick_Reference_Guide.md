@@ -17,8 +17,7 @@
 | `rf-doctor` | `npx ruflo@latest doctor --fix` |
 | `rf-init` | `npx ruflo@latest init` |
 | `rf-plugins` | `npx ruflo@latest plugins list --installed` |
-| `ruv-remember K V` | `npx ruflo@latest memory store --key "K" --value "V"` |
-| `ruv-recall Q` | `npx ruflo@latest memory search --query "Q"` |
+| `mem-store K V` | `npx ruflo@latest memory store --key "K" --value "V"` |
 | `mem-search Q` | `npx ruflo@latest memory search --query "Q"` |
 | `mem-stats` | `npx ruflo@latest memory stats` |
 | `bd-ready` | `bd ready --json` |
@@ -31,8 +30,8 @@
 | `gnx-analyze` | `npx gitnexus analyze` |
 | `gnx-serve` | `npx gitnexus serve` |
 | `gnx-wiki` | `npx gitnexus wiki` |
-| `aqe-generate` | `npx @agentic-qe/v3 generate` (or via MCP) |
-| `aqe-gate` | `npx @agentic-qe/v3 gate` (or via MCP) |
+| `aqe-generate` | `npx ruflo@latest mcp call aqe/generate-tests` |
+| `aqe-gate` | `npx ruflo@latest mcp call aqe/evaluate-quality-gate` |
 | `os-init` | `openspec init` |
 | `hooks-train` | `npx ruflo@latest hooks pretrain` |
 | `hooks-route` | `npx ruflo@latest hooks route --task "..."` |
