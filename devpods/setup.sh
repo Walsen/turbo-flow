@@ -329,12 +329,43 @@ ok "Elapsed: $(elapsed)"
 
 # =============================================================================
 # STEP 6: Beads — Cross-Session Project Memory (NEW in 4.0)
-# Agents remember across sessions via git-native JSONL.
+# Agents remember across sessions via git-native Dolt SQL database.
+# Beads requires Dolt (https://dolthub.com) as its database backend.
 # Repo: https://github.com/steveyegge/beads
 # Install: go install github.com/steveyegge/beads/cmd/bd@latest
 # FIX: Same OOM protection as GitNexus — subshell + capped heap.
 # =============================================================================
 step 6 "Beads (Cross-Session Memory)"
+
+# 6a: Install Dolt (Beads database backend) if not present
+if ! command -v dolt &>/dev/null; then
+    (
+        DOLT_ARCH=$(uname -m)
+        case "$DOLT_ARCH" in
+            x86_64|amd64) DOLT_ARCH="amd64" ;;
+            aarch64|arm64) DOLT_ARCH="arm64" ;;
+            *) DOLT_ARCH="amd64" ;;
+        esac
+        curl -L "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-${DOLT_ARCH}.tar.gz" \
+            -o /tmp/dolt.tar.gz 2>/dev/null
+        sudo tar -xzf /tmp/dolt.tar.gz -C /usr/local/bin/ 2>/dev/null
+        # The tar extracts to a directory structure — find and move the actual binary
+        if [ -d "/usr/local/bin/dolt/bin" ]; then
+            sudo cp /usr/local/bin/dolt/bin/dolt /usr/local/bin/dolt-bin 2>/dev/null
+            sudo rm -rf /usr/local/bin/dolt 2>/dev/null
+            sudo mv /usr/local/bin/dolt-bin /usr/local/bin/dolt 2>/dev/null
+        fi
+        sudo chmod +x /usr/local/bin/dolt 2>/dev/null
+        rm -f /tmp/dolt.tar.gz
+    ) || true
+    if command -v dolt &>/dev/null; then
+        ok "Dolt $(dolt version 2>/dev/null) installed (Beads database backend)"
+    else
+        warn "Dolt not installed — Beads requires Dolt. Install manually from https://docs.dolthub.com"
+    fi
+else
+    ok "Dolt $(dolt version 2>/dev/null) already present"
+fi
 
 if ! command -v bd &>/dev/null; then
     BD_OK=0
@@ -593,13 +624,13 @@ Isolation: Git worktrees per parallel agent.
 3. AgentDB context loads automatically via Ruflo
 
 ### During Work — Decision Tree
-- **Project roadmap / blockers / dependencies / decisions** → `bd add` (Beads)
+- **Project roadmap / blockers / dependencies / decisions** → `bd create` (Beads)
 - **Current session tasks / active checklist** → Native Tasks
 - **Learned patterns / routing weights / skills** → AgentDB (automatic)
 
 ### Session End
-- File any discovered work as Beads issues: `bd add --type issue "description"`
-- Summarize architectural decisions in Beads: `bd add --type decision "description"`
+- File any discovered work as Beads issues: `bd create "description" -t issue`
+- Summarize architectural decisions in Beads: `bd create "description" -t decision`
 - AgentDB persists automatically
 
 ## Isolation Rules
@@ -938,7 +969,30 @@ if ! command -v gitnexus &>/dev/null; then
     npm install -g gitnexus >> "\$BSLOG" 2>&1 || true
 fi
 
-# --- 2. Retry Beads install if missing ---
+# --- 2. Install Dolt if missing (Beads database backend) ---
+if ! command -v dolt &>/dev/null; then
+    echo "[\$(date)] Installing Dolt (Beads database backend)..." >> "\$BSLOG"
+    (
+        DOLT_ARCH=$(uname -m)
+        case "$DOLT_ARCH" in
+            x86_64|amd64) DOLT_ARCH="amd64" ;;
+            aarch64|arm64) DOLT_ARCH="arm64" ;;
+            *) DOLT_ARCH="amd64" ;;
+        esac
+        curl -L "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-${DOLT_ARCH}.tar.gz" \
+            -o /tmp/dolt.tar.gz 2>/dev/null
+        sudo tar -xzf /tmp/dolt.tar.gz -C /usr/local/bin/ 2>/dev/null
+        if [ -d "/usr/local/bin/dolt/bin" ]; then
+            sudo cp /usr/local/bin/dolt/bin/dolt /usr/local/bin/dolt-bin 2>/dev/null
+            sudo rm -rf /usr/local/bin/dolt 2>/dev/null
+            sudo mv /usr/local/bin/dolt-bin /usr/local/bin/dolt 2>/dev/null
+        fi
+        sudo chmod +x /usr/local/bin/dolt 2>/dev/null
+        rm -f /tmp/dolt.tar.gz
+    ) >> "\$BSLOG" 2>&1
+fi
+
+# --- 3. Retry Beads install if missing ---
 if ! command -v bd &>/dev/null; then
     echo "[\$(date)] Installing Beads..." >> "\$BSLOG"
     npm install -g beads-cli >> "\$BSLOG" 2>&1 || true
@@ -947,7 +1001,7 @@ if ! command -v bd &>/dev/null; then
     pip install --user beads >> "\$BSLOG" 2>&1 || true
 fi
 
-# --- 3. Initialize Beads in workspace ---
+# --- 4. Initialize Beads in workspace ---
 if command -v bd &>/dev/null && [ -d "\$WORKSPACE/.git" ]; then
     if [ ! -d "\$WORKSPACE/.beads" ]; then
         echo "[\$(date)] Initializing Beads in workspace..." >> "\$BSLOG"
@@ -955,7 +1009,7 @@ if command -v bd &>/dev/null && [ -d "\$WORKSPACE/.git" ]; then
     fi
 fi
 
-# --- 4. Index workspace with GitNexus ---
+# --- 5. Index workspace with GitNexus ---
 if [ -d "\$WORKSPACE/.git" ]; then
     if command -v gitnexus &>/dev/null; then
         echo "[\$(date)] Indexing workspace with GitNexus..." >> "\$BSLOG"
@@ -967,7 +1021,7 @@ if [ -d "\$WORKSPACE/.git" ]; then
     fi
 fi
 
-# --- 5. Register GitNexus MCP if not already done ---
+# --- 6. Register GitNexus MCP if not already done ---
 if command -v gitnexus &>/dev/null || npx gitnexus --version >> "\$BSLOG" 2>&1; then
     npx gitnexus setup >> "\$BSLOG" 2>&1 \
         || claude mcp add gitnexus -- npx -y gitnexus mcp >> "\$BSLOG" 2>&1 \
