@@ -110,7 +110,7 @@ Create a pull request for the current branch:
    - Screenshots (if UI changes)
    - Related issues/tasks (reference Beads IDs if applicable)
 5. Open the PR: gh pr create --title "[title]" --body "[body]"
-6. If Beads is active: bd update <task-id> --comment "PR opened: [url]"
+6. If Beads is active: bd comments add <task-id> "PR opened: [url]"
 ```
 
 ### Prompt: Review PR
@@ -200,60 +200,45 @@ Ruflo provides 13 specialized GitHub agents. These are spawned via CLI or MCP.
 
 ```bash
 # Spawn PR manager to review and merge ready PRs
-npx ruflo agent spawn pr-manager \
-  --task "Review and merge ready PRs" \
-  --criteria "approved, passing-tests, no-conflicts"
+npx ruflo@latest agent spawn --agentType pr-manager --task "Review and merge ready PRs"
 
 # Spawn multi-reviewer swarm for comprehensive code analysis
-npx ruflo agent spawn code-review-swarm \
-  --task "Perform security, performance, and style review" \
-  --pr-number [N]
+npx ruflo@latest agent spawn --agentType code-review-swarm --task "Perform security, performance, and style review"
 ```
 
 ### Prompt: Release Management
 
 ```bash
 # Spawn release manager for full release lifecycle
-npx ruflo agent spawn release-manager \
-  --task "Prepare v[X.Y.Z] release" \
-  --include-changelog \
-  --auto-tag
+npx ruflo@latest agent spawn --agentType release-manager --task "Prepare v[X.Y.Z] release"
 ```
 
 ### Prompt: Issue Triage
 
 ```bash
 # Spawn issue tracker for automated triage
-npx ruflo agent spawn issue-tracker \
-  --task "Triage and label new issues" \
-  --assign-by-expertise
+npx ruflo@latest agent spawn --agentType issue-tracker --task "Triage and label new issues"
 ```
 
 ### Prompt: Multi-Repo Operations
 
 ```bash
 # Synchronize changes across microservices
-npx ruflo agent spawn multi-repo-swarm \
-  --task "Synchronize API changes across microservices" \
-  --repos "api-gateway,user-service,auth-service"
+npx ruflo@latest agent spawn --agentType multi-repo-swarm --task "Synchronize API changes across microservices"
 ```
 
 ### Prompt: GitHub Metrics
 
 ```bash
 # Generate repository health report
-npx ruflo agent spawn github-metrics \
-  --task "Generate monthly activity report" \
-  --include "commits,prs,issues,contributors"
+npx ruflo@latest agent spawn --agentType github-modes --task "Generate monthly activity report"
 ```
 
 ### Prompt: Workflow Automation
 
 ```bash
 # Create GitHub Actions workflows
-npx ruflo agent spawn workflow-automation \
-  --task "Create deployment workflow for staging environment" \
-  --trigger "push to staging branch"
+npx ruflo@latest agent spawn --agentType workflow-automation --task "Create deployment workflow for staging environment"
 ```
 
 ---
@@ -403,40 +388,35 @@ In Ruflo v3.5/TurboFlow v4, slash commands have been replaced by auto-activated 
 | "Deploy this to production" | `devops` |
 | "Scan this for vulnerabilities" | `security` |
 
-You can still invoke skills explicitly:
+You can still invoke skills explicitly via Claude Code slash commands:
 ```bash
-# In Claude Code
+# In Claude Code (these are Claude Code skills, not Ruflo CLI commands)
 /github-code-review
 /pair-programming --mode tdd
 /v3-security-overhaul
-
-# Via Ruflo CLI
-npx ruflo@latest skill run github-code-review
-npx ruflo@latest skill list
-npx ruflo@latest skill info sparc-methodology
 ```
 
 ---
 
 ## Claims System (Multi-Agent Coordination)
 
-Ruflo's Claims system manages who is working on what — human or agent. It prevents conflicts and enables handoffs.
+Ruflo's Claims system manages who is working on what — human or agent. It prevents conflicts and enables handoffs. Claims are accessed via MCP tools (when the ruflo MCP server is registered in Claude Code).
 
-```bash
-# Claim a task for yourself
-npx ruflo claim create --task "implement auth" --assignee human
+```
+# Claim a task (via MCP tool)
+mcp__ruflo__claims_claim { issueId: "<issue-number>", claimant: "human:user-1:alice" }
 
-# Agent claims work
-npx ruflo claim create --task "write tests" --assignee agent-tester-1
+# Agent claims work (via MCP tool)
+mcp__ruflo__claims_claim { issueId: "<issue-number>", claimant: "agent:coder-1:coder" }
 
-# List all active claims
-npx ruflo claim list
+# List all active claims (via MCP tool)
+mcp__ruflo__claims_list { status: "active" }
 
-# Release a claim (handoff)
-npx ruflo claim release --id [claim-id]
+# Release a claim / handoff (via MCP tool)
+mcp__ruflo__claims_release { issueId: "<issue-number>", claimant: "agent:coder-1:coder" }
 
-# Transfer between agents
-npx ruflo claim transfer --id [claim-id] --to agent-coder-2
+# Transfer between agents (via MCP tool)
+mcp__ruflo__claims_handoff { issueId: "<issue-number>", from: "agent:coder-1:coder", to: "agent:coder-2:coder" }
 ```
 
 ---
@@ -451,13 +431,10 @@ Create a GitHub Actions workflow for AI-powered code review:
 .github/workflows/ai-review.yml:
 - Trigger on pull_request (opened, synchronize)
 - Checkout code with full history
-- Install Ruflo
+- Install Ruflo: npx ruflo@latest init
 - Get changed files
-- Run code review swarm with 5 agents
-- Post review comments on the PR
-
-Use: npx ruflo swarm "review code changes for bugs, security, improvements" --agents 5 --output-format json
-Parse results and post via gh pr comment.
+- Spawn code review swarm for the PR
+- Post review comments via gh pr comment
 ```
 
 ### Prompt: Set Up AI Documentation Generation in CI
