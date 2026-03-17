@@ -371,19 +371,16 @@ gnx-wiki             # Generate repo wiki from graph
 
 ```
 turbo-flow/
-├── v3/                          ← archived (Claude Flow era)
-├── v4/                          ← active development (Ruflo era)
-│   ├── .devcontainer/
-│   │   ├── devcontainer.json
-│   │   ├── setup-turboflow-4.sh
-│   │   └── post-setup-turboflow-4.sh
-│   ├── scripts/
-│   │   └── generate-claude-md.sh
-│   ├── CLAUDE.md
-│   └── README.md
-├── docs/
-│   └── migration-v3-to-v4.md
-├── CLAUDE.md                    ← root, points to v4/
+├── V3/                          ← archived v3.0-v3.4.1 (Claude Flow era)
+├── .claude/                     ← skills, agents, settings
+├── .devcontainer/
+│   ├── devcontainer.json
+│   ├── setup-turboflow-4.sh
+│   └── post-setup-turboflow-4.sh
+├── scripts/
+│   └── generate-claude-md.sh
+├── devpods/context/            ← devpod context files
+├── CLAUDE.md                    ← workspace context (active)
 └── README.md
 ```
 
@@ -402,7 +399,7 @@ turbo-status
 turbo-help
 
 # 4. Run post-setup verification (13 checks)
-./post-setup-turboflow-4.sh
+# ./.devcontainer/post-setup-turboflow-4.sh
 ```
 
 ---
