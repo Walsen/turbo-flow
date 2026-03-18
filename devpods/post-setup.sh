@@ -282,12 +282,14 @@ else
 fi
 
 section "Alias Spot Check"
-for a in rf rf-swarm bd-ready wt-list gnx-analyze aqe-generate os; do
+# Check pure aliases
+for a in rf rf-swarm bd-ready gnx-analyze os; do
     grep -q "alias $a=" "$ALIAS_FILE" 2>/dev/null \
         && { success "Alias: $a"; } \
         || { warning "Alias missing: $a"; ((ISSUES++)); }
 done
-for f in turbo-status turbo-help wt-add rf-spawn; do
+# Check functions (wt-list, aqe-generate defined as functions not aliases)
+for f in turbo-status turbo-help wt-add wt-list rf-spawn aqe-generate; do
     grep -q "${f}()" "$ALIAS_FILE" 2>/dev/null \
         && { success "Function: $f"; } \
         || { warning "Function missing: $f"; ((ISSUES++)); }
