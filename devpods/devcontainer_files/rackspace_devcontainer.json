@@ -1,6 +1,6 @@
 {
     "name": "Claude Dev Workspace",
-    "image": "mcr.microsoft.com/devcontainers/base:bookworm",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers/features/rust:1": {
@@ -16,9 +16,9 @@
         "DEVPOD_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
         "AGENTS_DIR": "${containerWorkspaceFolder}/agents"
     },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y tmux htop && cd ${containerWorkspaceFolder} && git clone https://github.com/marcuspat/turbo-flow-claude && cp -r turbo-flow-claude/devpods . && rm -rf turbo-flow-claude && chmod +x ${containerWorkspaceFolder}/devpods/*.sh 2>/dev/null || true && if [ -f ${containerWorkspaceFolder}/devpods/setup.sh ]; then ${containerWorkspaceFolder}/devpods/setup.sh; fi",
-    "postStartCommand": "echo '✅ Container started, waiting for VS Code...'",
-    "postAttachCommand": "if [ -f ${containerWorkspaceFolder}/devpods/post-setup.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/post-setup.sh && ${containerWorkspaceFolder}/devpods/post-setup.sh; fi && if [ -f ${containerWorkspaceFolder}/devpods/tmux-workspace.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/tmux-workspace.sh && sed 's/tmux attach-session -t workspace/echo \"✅ tmux workspace ready\"/' ${containerWorkspaceFolder}/devpods/tmux-workspace.sh | bash; fi",
+    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y tmux htop && cd ${containerWorkspaceFolder} && git clone https://github.com/marcuspat/turbo-flow-claude && cp -r turbo-flow-claude/devpods . && rm -rf turbo-flow-claude && chmod +x ${containerWorkspaceFolder}/devpods/*.sh 2>/dev/null || true && if [ -f ${containerWorkspaceFolder}/devpods/setup.sh ]; then bash ${containerWorkspaceFolder}/devpods/setup.sh; fi",
+    "postStartCommand": "command -v tmux >/dev/null 2>&1 || (sudo apt-get install -y tmux htop -qq 2>/dev/null || true) && echo '✅ Container started, waiting for VS Code...'",
+    "postAttachCommand": "if [ -f ${containerWorkspaceFolder}/devpods/post-setup.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/post-setup.sh && bash ${containerWorkspaceFolder}/devpods/post-setup.sh; fi && if [ -f ${containerWorkspaceFolder}/devpods/tmux-workspace.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/tmux-workspace.sh && sed 's/tmux attach-session -t workspace/echo \"✅ tmux workspace ready\"/' ${containerWorkspaceFolder}/devpods/tmux-workspace.sh | bash; fi",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -34,7 +34,10 @@
                 "terminal.integrated.profiles.linux": {
                     "tmux-workspace": {
                         "path": "/bin/bash",
-                        "args": ["-c", "tmux attach-session -t workspace 2>/dev/null || bash"]
+                        "args": [
+                            "-c",
+                            "command -v tmux >/dev/null 2>&1 && (tmux attach-session -t workspace 2>/dev/null || tmux new-session -s workspace 2>/dev/null || bash) || bash"
+                        ]
                     }
                 },
                 "terminal.integrated.defaultProfile.linux": "tmux-workspace"
