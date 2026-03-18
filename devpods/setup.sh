@@ -129,7 +129,7 @@ if ! command -v claude &>/dev/null; then
         ok "Claude Code installed"
     else
         # Fallback to official installer
-        curl -fsSL https://claude.ai/install.sh 2>/dev/null | sh 2>&1 || true
+        curl -fsSL https://claude.ai/install.sh 2>/dev/null | bash 2>&1 || true
         export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
         if command -v claude &>/dev/null; then
             ok "Claude Code installed via official installer"
