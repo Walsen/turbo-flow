@@ -108,8 +108,6 @@ else
     ok "Node.js $(node -v) already present"
 fi
 
-ok "Elapsed: $(elapsed)"
-
 # =============================================================================
 # STEP 2: Claude Code + Ruflo v3.5
 # Ruflo v3.5 bundles: AgentDB v3, RuVector WASM, SONA, 215 MCP tools,
@@ -123,6 +121,8 @@ ok "Elapsed: $(elapsed)"
 #         Now pipes to bash explicitly.
 # FIX 12: npm fallback respects NPM_CONFIG_PREFIX from containerEnv so
 #         global installs go to ~/.npm-global/ instead of /usr/local/.
+# FIX 13: Ruflo init uses --force to ensure .claude-flow/ and skills are
+#         fully populated even on re-runs.
 # =============================================================================
 step 2 "Claude Code + Ruflo v3.5"
 
@@ -146,6 +146,40 @@ if ! command -v claude &>/dev/null; then
 else
     ok "Claude Code $(claude --version 2>/dev/null | head -1 || echo 'present')"
 fi
+
+# ── Ruflo init — force to ensure .claude-flow/ and skills are populated ──
+RUFLO_INIT_OUTPUT=""
+RUFLO_INIT_RC=0
+RUFLO_INIT_OUTPUT=$(npx ruflo@latest init --force 2>&1) || RUFLO_INIT_RC=$?
+
+if [ $RUFLO_INIT_RC -eq 0 ]; then
+    ok "Ruflo v3.5 initialized (includes RuVector, AgentDB, SONA, skills, browser, observability)"
+else
+    RUFLO_INIT_OUTPUT2=""
+    RUFLO_INIT_RC2=0
+    RUFLO_INIT_OUTPUT2=$(npx ruflo@latest init 2>&1) || RUFLO_INIT_RC2=$?
+    if [ $RUFLO_INIT_RC2 -eq 0 ]; then
+        ok "Ruflo v3.5 initialized"
+    elif echo "$RUFLO_INIT_OUTPUT2" | grep -qi "already initialized\|already exists\|Found:"; then
+        ok "Ruflo v3.5 already initialized"
+    else
+        warn "Ruflo init returned code $RUFLO_INIT_RC2 — check $LOG"
+        echo "$RUFLO_INIT_OUTPUT2" >> "$LOG" 2>&1
+    fi
+fi
+
+# ── MCP registration — fully guarded ──
+claude mcp remove claude-flow 2>/dev/null || true
+claude mcp add ruflo -- npx -y ruflo@latest 2>/dev/null \
+    && ok "Ruflo MCP server registered" \
+    || warn "Ruflo MCP registration skipped (configure manually if needed)"
+
+# ── Doctor check — guarded ──
+npx ruflo doctor --fix >> "$LOG" 2>&1 \
+    && ok "Ruflo doctor passed" \
+    || warn "Ruflo doctor had issues (check $LOG)"
+
+ok "Elapsed: $(elapsed)"
 
 # =============================================================================
 # STEP 3: Ruflo Plugins (6 — development-relevant only)
@@ -219,7 +253,6 @@ ok "Elapsed: $(elapsed)"
 # Free memory between heavy install phases
 npm cache clean --force >> "$LOG" 2>&1 || true
 
-cat /tmp/turboflow-setup.log | grep -i "error\|EACCES\|permission\|ENOMEM\|404\|not found" | head -30
 # =============================================================================
 # STEP 4: UI UX Pro Max Skill
 # Design system skill for Claude Code — component patterns, accessibility,
