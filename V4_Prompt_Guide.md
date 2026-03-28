@@ -11,7 +11,23 @@ Paste this as your first message every time:
 Boot up. Project ID is [your-project-name]. Run the full session boot protocol, show me the status board when done.
 ```
 
-That's it. The CLAUDE.md tells it exactly what to do — daemon, hooks, beads, memory, GitNexus, swarm init, route. You just kick it off.
+That's it. The CLAUDE.md runs the full 11-step primer automatically:
+
+```
+Step 0:  Pre-flight     — env file, migrations, stashes, disk space
+Step 1:  Daemon          — starts background workers
+Step 2:  Hooks           — verifies registration, fires session-start (restores context from SQLite)
+Step 3:  Beads           — loads all open issues, blockers, decisions
+Step 4:  Intelligence    — checks if warm, auto-runs pretrain if cold
+Step 5:  Ruflo Memory    — verifies HNSW index health, then recalls project state
+Step 6:  AgentDB         — health check probe via MCP, auto-repairs if unavailable
+Step 7:  GitNexus        — checks freshness, auto-reindexes if stale (not optional)
+Step 8:  Swarm           — initializes star topology
+Step 9:  Security        — verifies pre-edit hooks and audit worker are active
+Step 10: Router          — routes today's work via Q-learning
+```
+
+Every subsystem gets primed, not just checked. If anything is broken, it auto-fixes and reports what it did.
 
 If resuming a previous session:
 
@@ -45,7 +61,7 @@ Parallel where possible.
 The team invitation flow doesn't work yet. Make it work end to end — invites, acceptance, seat limits, the UI.
 ```
 
-**What happens:** It boots memory → recalls prior solutions → reads code → generates a TodoWrite → shows you the plan → waits for your "proceed" → executes.
+**What happens:** It recalls prior solutions from memory + AgentDB → reads code + checks blast radius → generates a TodoWrite → shows you the plan → waits for your "proceed" → executes in parallel → runs tests → stores what it learned.
 
 ---
 
@@ -141,10 +157,19 @@ Review everything I've staged. Flag bugs, missing error handling, type issues, s
 I want to rename handleTierUpgrade to processTierUpgrade. Show me the blast radius before we do anything.
 ```
 
+### Run tests
+```
+Run the full test suite and show me results.
+```
+You shouldn't need to say this often — the CLAUDE.md requires tests before every commit. But if you want to check manually.
+
 ### Security scan
 ```
 Run a full security scan on the project.
 ```
+
+### Before a dangerous operation
+The agent will auto-confirm with you before running destructive commands (`git reset --hard`, `rm -rf`, `DROP TABLE`, etc.) on any branch. You don't need a special prompt — just say yes or no when it asks.
 
 ---
 
@@ -154,6 +179,21 @@ Run a full security scan on the project.
 ```
 Run doctor and fix whatever's broken.
 ```
+
+### Specific subsystem down
+```
+AgentDB is returning unavailable. Fix it.
+```
+```
+GitNexus index is stale. Reindex now.
+```
+```
+Intelligence is cold — no patterns loaded. Pretrain.
+```
+```
+Hooks aren't firing. Check registration and fix.
+```
+The boot protocol auto-fixes most of these, but if something goes down mid-session, just name it.
 
 ### Agent seems to have lost context
 ```
@@ -198,12 +238,17 @@ These are for when you want to manually check something specific:
 | Full system status | `Show me the full status board` |
 | What's running | `Daemon status and worker list` |
 | Memory stats | `How many patterns and memories are stored?` |
+| AgentDB status | `Are all AgentDB controllers online?` |
 | Open issues | `Show all open beads` |
 | Blockers | `What blockers are open?` |
 | GitNexus freshness | `Is the GitNexus index current?` |
 | Intelligence stats | `Show intelligence and hook stats` |
+| Security hooks | `Are pre-edit hooks and audit worker active?` |
+| Context health | `How many turns are archived? Is context autopilot running?` |
+| Test status | `When did tests last run? Are they passing?` |
 | Session cost | `How much have we spent this session?` |
 | Disk / env health | `Run pre-flight checks again` |
+| Everything at once | `Full health check — run doctor and show all stats` |
 
 But normally you don't need these — the Status HUD shows everything after every action.
 
