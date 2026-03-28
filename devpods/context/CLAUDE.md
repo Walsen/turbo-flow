@@ -20,6 +20,213 @@ Isolation: Git worktrees per parallel agent.
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 - Never continuously check status after spawning a swarm — wait for results
+- **NEVER merge to `main` without completing the Triple-Gate Merge Protocol (see below)**
+- **NEVER force-push to `main` under any circumstances**
+- **NEVER bypass, batch, or shortcut the 3-confirmation sequence — each confirmation is a separate prompt/response cycle**
+- ALWAYS end action responses with the Status HUD — the human should never have to ask what's running
+- NEVER run destructive commands without confirmation — see DESTRUCTIVE COMMAND SAFEGUARDS below
+- ALWAYS run tests before committing (if a test suite exists) — a commit with failing tests is a broken commit
+- If you have attempted 3 different approaches to the same problem and all failed — STOP, explain what you tried, and ask the human how to proceed. Do not burn tokens on attempt #4+
+- ALWAYS clean up worktrees after their branch is merged — `wt-clean` is not optional, it's part of the merge
+
+---
+
+## RESPONSE FORMAT — STATUS HUD (always enforced)
+
+Every response that involves code changes, task execution, or system interaction MUST end with a compact status block. This is not optional. The human should never have to ask "what's running?" — it's always visible.
+
+### After Every Code/Task Response
+
+```
+───────────────────────────────────
+📍 Branch: feat/user-system · 3 files changed
+🧠 Memory: Beads ✅ · Ruflo HNSW ✅ · AgentDB ✅ · Context Autopilot ✅
+🔧 Daemon: running · workers: map ✅ audit ✅ optimize ⏸
+🌿 Worktrees: 2 active (.worktrees/fix-auth, .worktrees/feat-billing)
+🤖 Agents: 2/4 active (Coder-1: feat-billing, Tester: idle)
+📊 Hooks: 14 fired this session · last: PostToolUse:Edit
+🧪 Tests: passing (42/42) · last run: 3m ago
+💰 Session cost: $2.34 · budget remaining: $12.66/hr
+⚡ Model: Sonnet 4.5 (routed by QLearning — confidence 0.87)
+───────────────────────────────────
+```
+
+### Rules
+
+- Show only what's **actually active** — if no worktrees exist, omit that line. If no agents are spawned, omit that line. Don't show blank/N/A lines.
+- Always show: Branch, Memory status, Daemon status (or "not running" if it isn't)
+- Show 🧪 Tests line if a test suite exists — show last result and time since run. If tests are failing, always show this line even if other optional lines are omitted.
+- If pre-flight found warnings (missing .env, pending migrations, stashes), keep showing those as ⚠️ lines until resolved
+- Show after: any file edit, any bash command, any task completion, any agent spawn/completion, any git operation
+- Do NOT show after: pure conversation, answering questions, explaining concepts — only after action
+- Keep it to **one line per system** — no paragraphs, no explanations in the HUD
+- Use the emoji prefix exactly as shown — it makes scanning fast
+
+### On Session Boot
+
+After the boot protocol completes, show a full system status instead of the compact HUD:
+
+```
+╔══════════════════════════════════════════════════════╗
+║              ⚡ TURBOFLOW SESSION LIVE ⚡              ║
+╠══════════════════════════════════════════════════════╣
+║  Project:    ${PROJECT_ID}                           ║
+║  Branch:     current-branch                          ║
+║  Stack:      Next.js / Prisma / TypeScript           ║
+╠──────────────────────────────────────────────────────╣
+║  SYSTEM             STATUS                           ║
+╠──────────────────────────────────────────────────────╣
+║  Daemon              ✅ running (3 workers)          ║
+║  Hooks               ✅ 17 registered                ║
+║  Context Autopilot   ✅ archiving (42 turns stored)  ║
+║  Beads               ✅ 8 open issues · 2 blockers   ║
+║  Ruflo Memory        ✅ 156 entries · HNSW indexed   ║
+║  AgentDB             ✅ 8 controllers online         ║
+║  GitNexus            ✅ fresh (last: 2m ago)         ║
+║  Intelligence        ✅ 340 patterns · Q-table warm  ║
+║  Swarm               ✅ star topology · 4 max        ║
+║  Agent Teams         ⏸ not spawned                   ║
+║  Hive-Mind           ⏸ not initialized               ║
+║  Security            ✅ pre-edit hooks active         ║
+╠──────────────────────────────────────────────────────╣
+║  PRE-FLIGHT                                          ║
+╠──────────────────────────────────────────────────────╣
+║  .env file           ✅ found | ⚠️  missing           ║
+║  DB migrations       ✅ current | ⚠️  pending         ║
+║  Stashed work        ✅ none | ⚠️  N stashes found    ║
+║  Uncommitted files   ✅ clean | ⚠️  N files dirty     ║
+║  Disk space          ✅ healthy | ⚠️  >90% full       ║
+╠──────────────────────────────────────────────────────╣
+║  Blockers: #12 (db migration pending)                ║
+║  Last session: completed RBAC UI, learned: ...       ║
+║  Routed goal: [from hooks route output]              ║
+╠──────────────────────────────────────────────────────╣
+║  🟢 ALL SYSTEMS GO                                   ║
+╚══════════════════════════════════════════════════════╝
+```
+
+### On Task Completion
+
+When finishing a task (not just a single edit — a full unit of work), add a one-line summary above the HUD:
+
+```
+✅ Completed: Implemented AI call tracking — 4 files changed, 2 tests added, quota now enforced
+───────────────────────────────────
+📍 Branch: feat/ai-tracking · +142 -23 lines
+🧠 Memory: all layers active · stored pattern "ai-quota-enforcement"
+...
+───────────────────────────────────
+```
+
+### On Errors or Degraded State
+
+If any system is down or a command fails, call it out at the TOP of the response, not buried in output:
+
+```
+⚠️  GitNexus index stale (last analyzed 4h ago) — running `npx gitnexus analyze`
+⚠️  AgentDB returned { available: false } — running `npx ruflo@latest doctor --fix`
+```
+
+Then proceed with the work. Don't stop to ask — fix it and report.
+
+---
+
+## TRIPLE-GATE MERGE PROTOCOL (MANDATORY — zero exceptions)
+
+Any operation that merges, rebases, fast-forwards, or pushes commits into `main` (or the project's primary production branch) MUST pass three consecutive human confirmations. This includes `git merge`, `git rebase onto main`, `git push origin main`, PR merge commands, and any MCP tool or script that results in main being updated.
+
+**No agent, sub-agent, teammate, swarm worker, or background task may merge to main autonomously. Ever.**
+
+### Gate Sequence
+
+```
+GATE 1 — INTENT
+  Agent: "🔒 MERGE GATE 1/3: I am about to merge [branch] into main.
+          Changes: [summary — files changed, lines added/removed]
+          Commits: [count and last 3 commit messages]
+          Risk: [gitnexus impact summary if available]
+          Confirm? (yes/no)"
+  Human: "yes"
+
+GATE 2 — VERIFICATION
+  Agent: "🔒 MERGE GATE 2/3: Confirming merge of [branch] → main.
+          Tests passing: [yes/no/not run]
+          Uncommitted changes: [yes/no]
+          Conflicts detected: [yes/no]
+          This is irreversible on remote. Confirm again? (yes/no)"
+  Human: "yes"
+
+GATE 3 — FINAL AUTHORIZATION
+  Agent: "🔒 MERGE GATE 3/3: FINAL confirmation.
+          Merging [branch] → main and pushing to origin.
+          Type 'yes' to execute."
+  Human: "yes"
+```
+
+### Rules
+
+- Each gate MUST be a **separate prompt/response turn** — all three cannot appear in a single message
+- If the human responds with anything other than exactly `yes` (case-insensitive) at any gate, the merge is **aborted immediately** and the agent reports "Merge aborted at Gate N"
+- If the human says `yes` then later says `no` or `stop` or `wait` — abort and do not re-enter the sequence without starting over from Gate 1
+- The agent MUST run `gitnexus_detect_changes` (if available) between Gate 1 and Gate 2 and include the output in Gate 2
+- Sub-agents and swarm workers that need to merge to main MUST escalate to the lead agent, who then runs the Triple-Gate with the human — workers cannot run gates themselves
+- This protocol applies to **all synonyms**: `main`, `master`, `production`, `prod`, `release`, or whatever the project's primary branch is named
+- Hotfixes are NOT exempt — they go through all three gates
+
+### What Does NOT Require Triple-Gate
+
+- Merging between feature branches (e.g., `feat/a` → `feat/b`)
+- Pushing to any non-primary branch
+- Creating branches, tags, or worktrees
+- `git commit` on any branch (including main — committing is fine, pushing/merging is gated)
+
+---
+
+## DESTRUCTIVE COMMAND SAFEGUARDS
+
+These commands require **one explicit human confirmation** before execution, on ANY branch:
+
+```
+git reset --hard          git clean -fd             rm -rf (on project dirs)
+prisma migrate reset      prisma db push --force    DROP TABLE / DROP DATABASE
+npm cache clean --force   docker system prune       Any command with --force that deletes data
+```
+
+Format: `⚠️ DESTRUCTIVE: About to run [command]. This will [consequence]. Confirm? (yes/no)`
+
+One confirmation is enough — this is not Triple-Gate. The point is to prevent accidental data loss, not to slow you down.
+
+**No confirmation needed for:** `rm` on temp/generated files, `git clean` on build artifacts, `prisma migrate dev` (non-destructive), `docker stop`.
+
+---
+
+## ROLLBACK PROTOCOL — WHEN MAIN BREAKS
+
+If a merge to main causes failures (tests break, app won't start, production errors):
+
+```
+1. IMMEDIATELY: git revert --no-commit HEAD    (undo the merge, don't auto-commit)
+2. VERIFY:      run tests / start app           (confirm revert fixes it)
+3. COMMIT:      git commit -m "revert: [branch] merge — [reason]"
+4. PUSH:        git push origin main            (no Triple-Gate needed for emergency reverts)
+5. REPORT:      tell the human what broke and why
+6. BEAD:        bd add --type blocker "[branch] merge reverted — [reason]"
+7. STORE:       ruv-remember "revert/[branch]" "what went wrong and root cause"
+```
+
+Emergency reverts to main do NOT require Triple-Gate — speed matters when production is broken. Log everything so the fix attempt has context.
+
+---
+
+## CONFLICT RESOLUTION
+
+When `git merge` produces conflicts:
+
+- **NEVER auto-resolve conflicts silently.** Show the human which files conflict and what each side changed.
+- **For simple conflicts** (non-overlapping changes in same file): resolve, show the resolution, continue.
+- **For complex conflicts** (overlapping logic, competing implementations): show both sides and ask the human which approach to keep.
+- **After resolution**: run tests before committing the merge.
+- **Always run** `gitnexus_detect_changes` after conflict resolution to verify scope.
 
 ---
 
@@ -57,6 +264,13 @@ Hard cap: $15/hr. Always use hierarchical topology for coding swarms. Use Haiku 
 ## SESSION BOOT PROTOCOL (MANDATORY — every session)
 
 ```bash
+# 0. PRE-FLIGHT — catch problems before they cascade
+git stash list                                          # surface any forgotten stashed work
+git status --short                                      # uncommitted changes from last session?
+test -f .env || test -f .env.local || echo "⚠️  NO .env FILE FOUND"
+npx prisma migrate status 2>/dev/null || echo "⚠️  Prisma not available or migrations pending"
+df -h . | awk 'NR==2{if($5+0 > 90) print "⚠️  DISK " $5 " FULL"}'
+
 # 1. DAEMON — start background workers
 npx ruflo@latest daemon start
 npx ruflo@latest daemon status
@@ -91,6 +305,8 @@ npx ruflo@latest hooks route "${PROJECT_ID} session goals" --include-explanation
 > Replace `${PROJECT_ID}` with your project name (e.g. `rentamls`, `myapp`). Set once in PROJECT CONTEXT below.
 
 **Why this works:** Ruflo's `SessionStart` hook auto-fires `context-persistence-hook` which restores archived conversation turns from SQLite — context is never lost to compaction. The manual boot adds semantic memory recall and intelligence initialization on top.
+
+**After boot completes:** Output the full TURBOFLOW SESSION LIVE status table (defined in Response Format section). Every system line must reflect actual output from the boot commands — do not guess or assume status.
 
 ---
 
@@ -302,13 +518,16 @@ git worktree add .worktrees/feat-area-b -b feat/area-b
 # Agent 1: DATABASE_SCHEMA=fix_area_a
 # Agent 2: DATABASE_SCHEMA=feat_area_b
 
-# After both agents complete
+# After both agents complete — TRIPLE-GATE REQUIRED for each merge to main
 git checkout main
+# → Run tests on the feature branch BEFORE merging
+# → Run Triple-Gate Merge Protocol for fix/area-a
 git merge fix/area-a --no-ff
+# → Run Triple-Gate Merge Protocol for feat/area-b
 git merge feat/area-b --no-ff
 git push origin main
 
-# Cleanup
+# Cleanup — MANDATORY after merge, not optional
 wt-clean
 ```
 
@@ -370,6 +589,7 @@ Key flags: `--model haiku/sonnet/opus`, `--max-budget-usd`, `--resume <id>`, `--
 - Always create tasks before spawning (teammates need work to pick up)
 - Always use `run_in_background: true` for parallel teammate execution
 - Graceful shutdown: `SendMessage({ type: "shutdown_request", recipient: "name" })` before `TeamDelete`
+- **Sub-agents and teammates CANNOT merge to main — they must escalate merge requests to the lead agent, who runs the Triple-Gate with the human**
 
 ```
 // Standard Agent Teams pattern
@@ -541,16 +761,18 @@ Specs:         OpenSpec (npx @fission-ai/openspec → os init, os)
 
 When given an outcome statement:
 
-1. **Boot memory** (session boot protocol above)
+1. **Boot memory** (session boot protocol above — skip if already booted this session)
 2. **Route the goal**: `npx ruflo@latest hooks route "[goal]" --include-explanation`
 3. **Recall prior solutions**: `npx ruflo@latest memory search -q "[keywords]" --limit 5`
 4. **Search patterns**: `agentdb_pattern-search({ query: "[keywords]", limit: 5 })`
 5. **Read files + check blast radius**: `gitnexus_impact` on every symbol you'll touch
 6. **Generate ONE TodoWrite** with 5–10+ todos, parallel tasks clearly labeled
-7. **Present plan**: "Found: [issues from memory + codebase]. Plan: [todos]. Proceed?"
+7. **Present plan**: "Found: [issues from memory + codebase]. Plan: [todos]. Proceed?" — wait for confirmation. (This is not "asking what to do" — you built the plan, you're confirming scope.)
 8. **Execute**: parallel worktrees or `claude -p` for independent tasks
-9. **After each task**: `npx ruflo@latest hooks post-task --task-id <id> --success true --store-results true`
-10. **Session end protocol**
+9. **Test**: run the project's test suite. If tests fail, fix before proceeding.
+10. **After each task**: `npx ruflo@latest hooks post-task --task-id <id> --success true --store-results true`
+11. **Store what you learned**: `ruv-remember` any patterns, fixes, or gotchas discovered
+12. **Session end protocol**
 
 ---
 
@@ -699,6 +921,7 @@ VAR_NAME=description of what this is
 ```
 # Key decisions that affect how agents should approach this codebase
 # Add entries as decisions are made during development
+# Format: date — decision — rationale
 ```
 
 ---
