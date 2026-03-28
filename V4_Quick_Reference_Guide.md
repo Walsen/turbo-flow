@@ -45,6 +45,12 @@
 ## Boot (every session)
 
 ```bash
+# 0. PRE-FLIGHT (before anything else)
+git stash list && git status --short
+test -f .env || test -f .env.local || echo "⚠️  NO .env"
+npx prisma migrate status 2>/dev/null || echo "⚠️  Migrations pending"
+df -h . | awk 'NR==2{if($5+0 > 90) print "⚠️  DISK " $5 " FULL"}'
+
 # Using TF aliases:
 source ~/.bashrc
 bd ready --json          # (native: bd ready --json)
@@ -69,17 +75,60 @@ One-liner (native): `source ~/.bashrc && npx ruflo@latest doctor --fix && bd rea
 ## The Core Loop
 
 ```
-BOOT:       source ~/.bashrc → rf-doctor (npx ruflo doctor --fix) → bd ready → gnx-analyze (npx gitnexus analyze) → hooks-train (npx ruflo hooks pretrain) → turbo-status
-PRD:        generate PRD → save to plans/research/PLAN.md → aqe-gate (npx @agentic-qe/v3 gate)
+BOOT:       pre-flight → source ~/.bashrc → rf-doctor → bd ready → gnx-analyze → hooks-train → rf-daemon → turbo-status → STATUS HUD
+PRD:        generate PRD → save to plans/research/PLAN.md → aqe-gate
 PLAN:       review /plans/research → create ADR/DDD → aqe-gate per ADR
 CUSTOMIZE:  update CLAUDE.md → update statusline → hooks-train → gnx-analyze → aqe-gate
-EXECUTE:    rf-swarm (npx ruflo swarm init) → agents in worktrees → aqe-gate per context → aqe-gate full codebase
-FEATURE:    bd ready → blast radius → wt-add (git worktree add) → implement → aqe-gate → merge → gnx-analyze
+EXECUTE:    rf-swarm → agents in worktrees → aqe-gate per context → aqe-gate full codebase
+FEATURE:    bd ready → blast radius → wt-add → implement → aqe-gate → merge (Triple-Gate if main) → gnx-analyze
 REFACTOR:   characterization tests → wt-add → refactor → aqe-gate → merge → gnx-analyze
 BUGFIX:     wt-add → failing test → fix → aqe-gate → merge → gnx-analyze
 RELEASE:    full aqe-gate → security scan → changelog from bd list → git tag
-HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze → neural-patterns (npx ruflo neural patterns)
+HANDOFF:    bd create (remaining) → bd close (done) → quality gates → bd dolt push → git push (MANDATORY) → gnx-analyze → neural-patterns
 ```
+
+---
+
+## Safety Protocols
+
+### Triple-Gate Merge Protocol
+Any merge to `main`/`master`/`production` requires **3 consecutive human confirmations** in separate turns:
+```
+GATE 1 — "🔒 1/3: Merging [branch] → main. [changes, risk]. Confirm?"
+GATE 2 — "🔒 2/3: Tests: [pass/fail]. Conflicts: [y/n]. Confirm?"
+GATE 3 — "🔒 3/3: FINAL. Type 'yes' to execute."
+```
+Non-`yes` at any gate = abort. Sub-agents escalate to lead. Hotfixes not exempt. Does NOT apply to feature-to-feature merges.
+
+### Destructive Command Safeguards
+One confirmation before: `git reset --hard`, `rm -rf` (project dirs), `prisma migrate reset`, `DROP TABLE`, any `--force` that deletes data.
+
+### Rollback Protocol
+Main breaks → `git revert --no-commit HEAD` → test → commit → push (skips Triple-Gate) → report → `bd create "[branch] reverted" -t bug -p 0`
+
+### Non-Interactive Shell
+Always use: `cp -f`, `mv -f`, `rm -f`, `rm -rf`. Aliased `-i` hangs agents. Also: `scp -o BatchMode=yes`, `apt-get -y`.
+
+### Escalation Rule
+After 3 failed approaches to the same problem — STOP and ask the human. Don't burn tokens on attempt #4+.
+
+### Conflict Resolution
+Never silently auto-resolve. Simple (non-overlapping): resolve + show. Complex (overlapping logic): show both sides, ask human. Always test + `gitnexus_detect_changes` after resolving.
+
+---
+
+## Status HUD
+
+After every action response (file edit, bash, task completion, git op), end with:
+```
+📍 Branch: feat/name · 3 files changed
+🧠 Memory: Beads ✅ · HNSW ✅ · AgentDB ✅
+🔧 Daemon: running · workers: map ✅ audit ✅
+🧪 Tests: passing (42/42)
+💰 Cost: $2.34 · remaining: $12.66/hr
+⚡ Model: Sonnet 4.5
+```
+Show only active systems. On boot show full table with 🟢/🟡/🔴. On task completion add `✅ Completed:` summary. On errors surface ⚠️ at top, auto-fix, proceed.
 
 ---
 
@@ -115,7 +164,9 @@ HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze
 | Alias / Command | What it does |
 |----------------|-------------|
 | `bd init` | Initialize Beads in repo |
+| `bd onboard` | First-time agent onboarding |
 | `bd ready --json` | Show ready tasks (session start) |
+| `bd prime` | Full workflow context dump |
 | `bd create "Title" -t task -p 1` | Create a task |
 | `bd create "Title" -t bug -p 0` | Create a P0 bug |
 | `bd create "Title" -t epic -p 1` | Create an epic |
@@ -126,8 +177,21 @@ HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze
 | `bd close <id> --reason "Done"` | Close a task |
 | `bd dep add <from> <to>` | Add dependency |
 | `bd blocked` | Show blocked issues |
+| `bd remember KEY VALUE` | Persistent knowledge storage |
+| `bd defer <id>` | Push issue to later |
+| `bd supersede <id>` | Mark as superseded |
+| `bd human <id>` | Flag for human decision |
+| `bd stale` | Find stale issues |
+| `bd orphans` | Find orphaned issues |
+| `bd lint` | Check data quality |
+| `bd formula list` | Available workflow templates |
+| `bd mol pour <name>` | Execute a workflow |
 
 TF aliases: `bd-ready` → `bd ready` · `bd-add` → `bd create` · `bd-list` → `bd list`
+
+**Types:** `bug` · `feature` · `task` · `epic` · `chore` — **Priorities:** `0` critical → `4` backlog
+
+**Rules:** Always use `--json` for programmatic output. Link discovered work with `--deps discovered-from:<id>`. No markdown TODOs.
 
 ### Worktrees
 
@@ -136,7 +200,7 @@ TF aliases: `bd-ready` → `bd ready` · `bd-add` → `bd create` · `bd-list` �
 | `wt-add <name>` | Create worktree + branch + PG Vector schema |
 | `wt-remove <name>` | Remove worktree |
 | `wt-list` | List active worktrees |
-| `wt-clean` | Prune stale worktrees |
+| `wt-clean` | Prune stale worktrees (MANDATORY after merge) |
 
 ### GitNexus (Codebase Intelligence)
 
@@ -292,6 +356,43 @@ Use Teammate plugin for cross-context coordination. Run aqe-gate after each cont
 Do not stop until all contexts pass quality gates.
 ```
 
+### Batch Execute from ADR/DDD
+
+```
+Execute the following batch in order. For each item:
+- Read files, run gitnexus_impact, implement, test, log bead, store patterns, show HUD
+- Do NOT stop between items — only stop if tests fail or you hit a blocker
+- If an item fails, log blocker bead and skip to next independent item
+- aqe-gate after each bounded context completes
+- Summary at end: completed, failed, needs attention
+
+BATCH:
+1. [ADR-001] — [description]
+2. [ADR-002] — [description]
+3. [ADR-003] — [description]
+...
+```
+
+Short version: `Execute all ready beads in dependency order. Don't stop between items. aqe-gate after each context. Summary at end.`
+
+From plan file: `Read plans/research/PLAN.md. Execute every ADR in order as a batch. aqe-gate after each context. Summary at end.`
+
+### Branch Analysis (post-boot)
+
+```
+Run a full branch analysis:
+1. BRANCH STATE — ahead/behind main, diff summary, uncommitted, stashes, last 10 commits
+2. CODEBASE CHANGES — gitnexus_detect_changes vs main, affected symbols/flows, risk
+3. BEADS STATUS — open issues, blockers, flagged for human, bd lint
+4. MEMORY RECALL — search memory + AgentDB for recent sessions, blockers, patterns
+5. HEALTH CHECK — run tests, build, lint. Pending migrations? Missing env vars?
+6. QUALITY ENGINEERING — aqe-gate, coverage gaps, security scan
+7. GAP ANALYSIS — what's DONE, IN PROGRESS, NOT STARTED? What's blocking? Parallelizable?
+Give me: A. Status summary B. Prioritized TodoWrite C. Session plan for 2-4 hours
+```
+
+Short version: `What's the state of this branch? Quick summary, open beads, and what should we work on.`
+
 ### Add Feature
 
 ```
@@ -299,7 +400,7 @@ Add [feature] to the [bounded context]. Before coding:
 1. bd ready --json — any related blockers?
 2. GitNexus blast radius — what does this touch?
 3. mem-search "[related area]" — any learned patterns?
-Then: wt-add feature-[name] → implement with TDD → aqe-gate → merge → gnx-analyze
+Then: wt-add feature-[name] → implement with TDD → aqe-gate → merge (Triple-Gate if main) → gnx-analyze
 ```
 
 ### Refactor
@@ -310,7 +411,7 @@ Refactor [module] to [goal]. Safety protocol:
 2. Generate characterization tests: aqe-generate
 3. wt-add refactor-[name]
 4. Refactor in isolation, all characterization tests must pass
-5. aqe-gate → merge → gnx-analyze
+5. aqe-gate → merge (Triple-Gate if main) → gnx-analyze
 ```
 
 ### Bug Fix
@@ -333,7 +434,7 @@ Incident: [symptoms].
 2. GitNexus: trace affected path
 3. wt-add hotfix-[name] (branch from production tag)
 4. Minimal fix (Ruflo routes to Opus for critical reasoning)
-5. aqe-gate → merge immediately
+5. aqe-gate → merge (Triple-Gate still required) → gnx-analyze
 6. bd create "INCIDENT: [root cause] — [fix]" -t bug -p 0
 ```
 
@@ -409,9 +510,14 @@ Give me: architecture summary, dependencies, hot paths, technical debt.
 Ending session. Before I go:
 1. bd create "Continue: [unfinished work]" -t task -p 1
 2. bd close <id> --reason "Completed: [summary]" (for done items)
-3. gnx-analyze — update graph
-4. neural-patterns — capture what was learned
-5. Summarize what a new agent needs to continue.
+3. Run quality gates: npm test && npm run lint && npm run build
+4. gnx-analyze — update graph
+5. neural-patterns — capture what was learned
+6. MANDATORY PUSH:
+   bd dolt push && git pull --rebase && git push
+   git status  # MUST show "up to date with origin"
+7. Summarize what a new agent needs to continue.
+Work is NOT complete until git push succeeds.
 ```
 
 ---
@@ -423,8 +529,9 @@ Ending session. Before I go:
 | **Project** | Beads | `bd create "..." -t task -p N` | `bd ready --json` · `bd list` |
 | **Session** | Native Tasks | Automatic | Automatic |
 | **Learned** | AgentDB | `ruv-remember KEY VALUE` | `ruv-recall QUERY` · `mem-search QUERY` |
+| **Persistent** | Beads Remember | `bd remember KEY VALUE` | `bd prime` |
 
-**Rule:** Tasks/bugs/features → Beads · Patterns/knowledge → AgentDB · Active work → Native Tasks
+**Rule:** Tasks/bugs/features → Beads · Patterns/knowledge → AgentDB · Active work → Native Tasks · Project facts → `bd remember`
 
 ---
 
@@ -445,11 +552,11 @@ Ending session. Before I go:
 
 | Role | Writes code? | Responsibility |
 |------|-------------|----------------|
-| Manager/Lead | NO | Plans, assigns, merges |
+| Manager/Lead | NO | Plans, assigns, merges (runs Triple-Gate with human) |
 | Builder | YES | Implements in own worktree |
 | QA | NO (tests only) | Runs QE pipeline, validates |
 
-**Rule:** One bounded context per agent. Anti-Corruption Layer for cross-context communication.
+**Rule:** One bounded context per agent. Anti-Corruption Layer for cross-context communication. Sub-agents CANNOT merge to main — must escalate to lead.
 
 ---
 
@@ -481,7 +588,7 @@ LINE 3: [+150] [-50] | [READY]
 |----------|---------|
 | DevPod | `devpod up https://github.com/marcuspat/turbo-flow --ide vscode` |
 | Codespaces | Push to GitHub → Open in Codespace → auto-runs |
-| Manual | `cd turbo-flow && ./. devcontainer/devpods/setup.sh` |
+| Manual | `cd turbo-flow && ./devpods/setup.sh` |
 | macOS/Linux | See `macosx_linux_setup.md` |
 | Rackspace | See `spot_rackspace_setup_guide.md` |
 | Google Cloud | See `google_cloud_shell_setup.md` |
@@ -514,6 +621,10 @@ LINE 3: [+150] [-50] | [READY]
 | Ruflo not responding | `npx ruflo@latest init` → `rf-doctor` |
 | QE gate failing | Read gap report → fix gaps → re-run |
 | Slash commands gone | v4 auto-activates skills — just describe naturally |
+| Agent hangs on shell cmd | Use `-f` flags: `cp -f`, `mv -f`, `rm -f` |
+| Merge to main blocked | Triple-Gate requires 3 confirmations — this is by design |
+| Work lost after session | Session end protocol requires `git push` — check `git status` |
+| AgentDB unavailable | `npm install -g @claude-flow/memory && npx ruflo@latest doctor --fix` |
 
 ---
 
