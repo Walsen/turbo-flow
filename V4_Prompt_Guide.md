@@ -35,6 +35,38 @@ If resuming a previous session:
 Boot up. Project ID is [your-project-name]. Resume from last session — check memory and beads for where we left off.
 ```
 
+### After boot: Full branch analysis
+
+Once the status board is green, paste this to get a complete picture of where the branch stands and what needs to happen:
+
+```
+Run a full branch analysis. I need to know exactly where we are and what's left to do.
+
+1. BRANCH STATE — what branch, how far ahead/behind main, full diff summary vs main, uncommitted changes, stashes, last 10 commits with timestamps
+
+2. CODEBASE CHANGES — run gitnexus_detect_changes vs main, what symbols changed, what execution flows are affected, any HIGH/CRITICAL risk
+
+3. BEADS STATUS — open issues, blockers, recently completed, anything flagged for human decision, run bd lint
+
+4. MEMORY RECALL — search memory for recent sessions, known blockers, AgentDB patterns related to current work, logged decisions
+
+5. HEALTH CHECK — run tests, build, and lint right now. Check for pending migrations and missing env vars.
+
+6. GAP ANALYSIS — based on everything above, what is DONE, IN PROGRESS, and NOT STARTED? What's blocking? What can be parallelized?
+
+Then give me:
+A. STATUS SUMMARY — 5-10 lines, plain English
+B. PRIORITIZED TODO — generate a TodoWrite ordered by priority and dependency
+C. SESSION PLAN — if I have 2-4 hours, what do we tackle first?
+```
+
+This runs ~15-20 tool calls across git, gitnexus, beads, memory, agentdb, and your test suite. Takes about 2-3 minutes. After that you say "proceed" and start working.
+
+**The short version** if you don't need the full analysis:
+```
+What's the state of this branch? Quick summary, open beads, and what should we work on.
+```
+
 ---
 
 ## 2. GIVE IT WORK
@@ -78,15 +110,25 @@ Remember that the agency slug field was removed in the RBAC migration — invita
 What did we do last time to fix the permission middleware? Search memory.
 ```
 
+### Create an issue for something you found
+```
+Create a bug: the quota reset doesn't handle users with no subscription. Priority 1, link it to the current work.
+```
+→ Uses `bd create` with proper type, priority, and `discovered-from` linking
+
 ### Log a decision
 ```
 Log a decision: we're using DB-based rate limiting instead of Redis because the project doesn't have a Redis instance.
 ```
-→ Creates a bead
 
 ### Log a blocker
 ```
-Log a blocker: can't test invitation emails without an SMTP service configured.
+Create a blocker: can't test invitation emails without an SMTP service configured. Priority 0.
+```
+
+### Flag something for your review
+```
+Flag bd-42 for human decision — I need to look at this myself.
 ```
 
 ### Check on things
@@ -94,13 +136,16 @@ Log a blocker: can't test invitation emails without an SMTP service configured.
 What's the current status? Show me the full board.
 ```
 ```
-What blockers are open?
+What's ready to work on?
+```
+```
+Show all open blockers.
+```
+```
+Run beads hygiene — check for stale issues and orphans.
 ```
 ```
 What patterns have we stored this session?
-```
-```
-How's the GitNexus index — is it fresh?
 ```
 
 ---
@@ -220,11 +265,13 @@ Stop. What have you tried so far and why isn't it working?
 End session. Store what we did, what we learned, and what's next.
 ```
 
-That triggers the full session end protocol — persists learning, stores summary, trains patterns, files beads, runs daemon audit.
+That triggers the full session end protocol: file remaining work as beads → run quality gates (tests/lint/build) → persist learning → store summary → sync beads → **git push** → daemon audit.
+
+**The agent will not stop until `git push` succeeds.** This is enforced in the CLAUDE.md — work stranded locally is work lost.
 
 If you need to leave quickly:
 ```
-Quick save and end. We'll pick up next session.
+Quick save and end. Push everything now.
 ```
 
 ---
