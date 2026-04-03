@@ -22,9 +22,7 @@
 ## About Adventure Wave Labs
 
 <div align="center">
-
-![Adventure Wave Labs](https://i.ibb.co/N6m72sYQ/AWLabs.png)
-
+  <img src="https://i.ibb.co/N6m72sYQ/AWLabs.png" alt="Adventure Wave Labs" width="300">
 </div>
 
 **Adventure Wave Labs** is the team behind Turbo Flow — a complete agentic development environment built for the Claude ecosystem. We design, build, and maintain the tooling that brings together orchestration, memory, codebase intelligence, and agent isolation into a single streamlined workflow.
