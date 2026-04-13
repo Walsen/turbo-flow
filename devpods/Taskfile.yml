@@ -1,0 +1,569 @@
+# =============================================================================
+# TurboFlow 4.0 — Taskfile
+#
+# Lives inside devpods/ alongside setup.sh, post-setup.sh, etc.
+# After the standard install pattern (clone → cp devpods → rm clone),
+# this file ends up at: <workspace>/devpods/Taskfile.yml
+#
+# Replaces: setup.sh (1,130 lines), post-setup.sh (300 lines),
+#           boot_linux.sh, boot_macosx.sh, boot_rackspace.sh,
+#           boot_codespace.sh, boot_google_cloud_shell.sh, codespace_setup.sh
+#
+# Usage (from devpods/):
+#   task setup          # full install (all 10 steps)
+#   task setup:quick    # core only (steps 1-3, skip optional tools)
+#   task verify         # post-setup verification
+#   task status         # quick health check
+#   task tmux           # launch tmux workspace
+#   task --list         # see all available tasks
+#
+# Usage (from workspace root):
+#   task -d devpods setup
+#   # or: bash devpods/bootstrap.sh
+#
+# Each task is idempotent — safe to re-run. The `status` field skips
+# tasks whose checks already pass.
+# =============================================================================
+version: '3'
+
+vars:
+  # Workspace is the parent of devpods/
+  WORKSPACE: '{{.WORKSPACE | default (env "WORKSPACE") | default ".."}}'
+  LOG: /tmp/turboflow-setup.log
+  NPM_PREFIX: '{{env "NPM_CONFIG_PREFIX" | default (printf "%s/.npm-global" (env "HOME"))}}'
+  NODE_HEAP: "--max-old-space-size=512"
+
+env:
+  NPM_CONFIG_PREFIX: '{{.NPM_PREFIX}}'
+  PATH: '{{.NPM_PREFIX}}/bin:{{env "HOME"}}/.local/bin:{{env "HOME"}}/.claude/bin:{{env "PATH"}}'
+  CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"
+  PIP_BREAK_SYSTEM_PACKAGES: "1"
+
+# =============================================================================
+# Main orchestration tasks
+# =============================================================================
+tasks:
+
+  setup:
+    desc: "Full TurboFlow 4.0 setup (all 10 steps)"
+    cmds:
+      - task: system-deps
+      - task: nodejs
+      - task: claude-code
+      - task: ruflo
+      - task: plugins
+      - task: uipro
+      - task: gitnexus
+      - task: dolt
+      - task: beads
+      - task: workspace
+      - task: statusline
+      - task: claude-md
+      - task: aliases
+      - task: mcp
+      - task: npm-cleanup
+      - echo ""
+      - echo "╔══════════════════════════════════════════════════╗"
+      - echo "║       ✓ TurboFlow 4.0 Setup Complete             ║"
+      - echo "╚══════════════════════════════════════════════════╝"
+      - echo ""
+      - echo "  Next → run 'claude' (everything else is automatic)"
+      - echo "  Verify → task verify  (from devpods/)"
+      - echo ""
+
+  setup:quick:
+    desc: "Quick setup — core tools only (system deps + Node + Claude + Ruflo)"
+    cmds:
+      - task: system-deps
+      - task: nodejs
+      - task: claude-code
+      - task: ruflo
+
+  verify:
+    desc: "Post-setup verification (runs post-setup.sh)"
+    cmds:
+      - bash post-setup.sh
+
+  status:
+    desc: "Quick health check"
+    cmds:
+      - |
+        echo "TurboFlow 4.0 Status"
+        echo "━━━━━━━━━━━━━━━━━━━━"
+        command -v node    &>/dev/null && echo "  ✓ Node.js $(node -v)"          || echo "  ✗ Node.js"
+        command -v claude  &>/dev/null && echo "  ✓ Claude Code"                 || echo "  ✗ Claude Code"
+        npx ruflo@latest --version &>/dev/null && echo "  ✓ Ruflo"              || echo "  ✗ Ruflo"
+        command -v dolt    &>/dev/null && echo "  ✓ Dolt"                        || echo "  ✗ Dolt"
+        command -v bd      &>/dev/null && echo "  ✓ Beads"                       || echo "  ✗ Beads"
+        command -v gitnexus &>/dev/null && echo "  ✓ GitNexus"                   || echo "  ○ GitNexus (available via npx)"
+        [ -f "{{.WORKSPACE}}/CLAUDE.md" ] && echo "  ✓ CLAUDE.md"               || echo "  ✗ CLAUDE.md"
+        [ -f "$HOME/.turboflow_aliases" ] && echo "  ✓ Aliases"                 || echo "  ✗ Aliases"
+
+  tmux:
+    desc: "Launch tmux workspace (4 panes)"
+    cmds:
+      - bash tmux-workspace.sh
+
+
+  # ===========================================================================
+  # Step 1: System Dependencies (platform-aware)
+  # ===========================================================================
+
+  system-deps:
+    desc: "Install system packages (build-essential, python3, git, curl, jq, tmux)"
+    cmds:
+      - task: system-deps:{{OS}}
+
+  system-deps:linux:
+    internal: true
+    platforms: [linux]
+    status:
+      - command -v gcc
+      - command -v g++
+      - command -v make
+      - command -v jq
+      - command -v tmux
+      - command -v python3
+    cmds:
+      - |
+        if command -v apt-get &>/dev/null; then
+          sudo apt-get update -qq >> {{.LOG}} 2>&1
+          sudo apt-get install -y -qq build-essential python3 python3-pip git curl jq tmux htop >> {{.LOG}} 2>&1
+        elif command -v dnf &>/dev/null; then
+          sudo dnf install -y git curl tmux htop python3 python3-pip jq @development-tools >> {{.LOG}} 2>&1
+        elif command -v yum &>/dev/null; then
+          sudo yum install -y git curl tmux htop python3 python3-pip jq >> {{.LOG}} 2>&1
+          sudo yum groupinstall -y "Development Tools" >> {{.LOG}} 2>&1
+        else
+          echo "⚠ Unknown package manager — install manually: build-essential python3 git curl jq tmux"
+          exit 1
+        fi
+      - echo "  ✓ System packages installed"
+
+  system-deps:darwin:
+    internal: true
+    platforms: [darwin]
+    status:
+      - command -v gcc
+      - command -v jq
+      - command -v tmux
+    cmds:
+      - |
+        if ! command -v brew &>/dev/null; then
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          if [ -d "/opt/homebrew/bin" ]; then eval "$(/opt/homebrew/bin/brew shellenv)"; fi
+        fi
+      - brew install git curl tmux htop python direnv jq 2>/dev/null || true
+      - echo "  ✓ Homebrew packages installed"
+
+  # ===========================================================================
+  # Step 1b: Node.js 20+
+  # ===========================================================================
+
+  nodejs:
+    desc: "Install Node.js 20+ (required by Ruflo v3.5)"
+    status:
+      - command -v node
+      - test "$(node -v | cut -d. -f1 | tr -d v)" -ge 20
+    cmds:
+      - |
+        if command -v nvm &>/dev/null; then
+          nvm install 20 && nvm use 20 && nvm alias default 20
+        elif command -v brew &>/dev/null; then
+          brew install node@20
+        else
+          curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - >> {{.LOG}} 2>&1
+          sudo apt-get install -y -qq nodejs >> {{.LOG}} 2>&1
+        fi
+      - mkdir -p "{{.NPM_PREFIX}}/bin" "{{.NPM_PREFIX}}/lib"
+      - echo "  ✓ Node.js $(node -v) installed"
+
+  # ===========================================================================
+  # Step 2: Claude Code
+  # ===========================================================================
+
+  claude-code:
+    desc: "Install Claude Code (native installer, npm fallback)"
+    status:
+      - command -v claude
+    cmds:
+      - |
+        curl -fsSL https://claude.ai/install.sh 2>/dev/null | bash >> {{.LOG}} 2>&1 || true
+        export PATH="$HOME/.local/bin:$HOME/.claude/bin:$PATH"
+
+        if command -v claude &>/dev/null; then
+          echo "  ✓ Claude Code installed (native)"
+        else
+          npm install -g @anthropic-ai/claude-code >> {{.LOG}} 2>&1 || true
+          if command -v claude &>/dev/null; then
+            echo "  ✓ Claude Code installed (npm)"
+          else
+            echo "  ✗ Claude Code install failed — try: curl -fsSL https://claude.ai/install.sh | bash"
+            exit 1
+          fi
+        fi
+
+  # ===========================================================================
+  # Step 2b: Ruflo v3.5
+  # ===========================================================================
+
+  ruflo:
+    desc: "Initialize Ruflo v3.5 (orchestration engine)"
+    deps: [nodejs]
+    dir: "{{.WORKSPACE}}"
+    status:
+      - test -d "{{.WORKSPACE}}/.claude-flow"
+    cmds:
+      - |
+        OUTPUT=$(npx ruflo@latest init --force 2>&1) || true
+        if [ -d .claude-flow ]; then
+          echo "  ✓ Ruflo v3.5 initialized"
+        else
+          OUTPUT2=$(npx ruflo@latest init 2>&1) || true
+          if echo "$OUTPUT2" | grep -qi "already initialized\|already exists"; then
+            echo "  ✓ Ruflo v3.5 already initialized"
+          else
+            echo "  ⚠ Ruflo init may have issues — check {{.LOG}}"
+            echo "$OUTPUT" >> {{.LOG}}
+            echo "$OUTPUT2" >> {{.LOG}}
+          fi
+        fi
+      - npx ruflo doctor --fix >> {{.LOG}} 2>&1 || true
+
+  # ===========================================================================
+  # Step 3: Ruflo Plugins (6) + OpenSpec
+  # ===========================================================================
+
+  plugins:
+    desc: "Install 6 Ruflo plugins + OpenSpec"
+    deps: [ruflo]
+    dir: "{{.WORKSPACE}}"
+    env:
+      NODE_OPTIONS: "{{.NODE_HEAP}}"
+    cmds:
+      - task: plugin
+        vars: { NAME: "@claude-flow/plugin-agentic-qe" }
+      - task: plugin
+        vars: { NAME: "@claude-flow/plugin-code-intelligence" }
+      - task: plugin
+        vars: { NAME: "@claude-flow/plugin-test-intelligence" }
+      - task: plugin
+        vars: { NAME: "@claude-flow/plugin-perf-optimizer" }
+      - task: plugin
+        vars: { NAME: "@claude-flow/teammate-plugin" }
+      - task: plugin
+        vars: { NAME: "@claude-flow/plugin-gastown-bridge" }
+      - npm install -g @fission-ai/openspec >> {{.LOG}} 2>&1 || echo "  ⚠ OpenSpec failed (optional)"
+      - npm cache clean --force >> {{.LOG}} 2>&1 || true
+
+  plugin:
+    internal: true
+    dir: "{{.WORKSPACE}}"
+    cmds:
+      - |
+        PLUGIN_DIR="{{.WORKSPACE}}/.claude-flow/plugins/{{.NAME}}"
+        if [ -d "$PLUGIN_DIR" ] && [ -f "$PLUGIN_DIR/package.json" ]; then
+          echo "  ✓ {{.NAME}} already installed"
+          exit 0
+        fi
+        if npx ruflo@latest plugins install -n "{{.NAME}}" >> {{.LOG}} 2>&1; then
+          echo "  ✓ {{.NAME}} installed"
+        elif npx ruflo@latest plugins install --name "{{.NAME}}" >> {{.LOG}} 2>&1; then
+          echo "  ✓ {{.NAME}} installed"
+        else
+          echo "  ⚠ {{.NAME}} failed (optional)"
+        fi
+
+
+  # ===========================================================================
+  # Step 4: UI UX Pro Max Skill
+  # ===========================================================================
+
+  uipro:
+    desc: "Install UI UX Pro Max design skill"
+    status:
+      - test -d "$HOME/.claude/skills/ui-ux-pro-max" -a -n "$(ls -A $HOME/.claude/skills/ui-ux-pro-max 2>/dev/null)"
+    cmds:
+      - |
+        for d in "$HOME/.claude/skills/ui-ux-pro-max" "{{.WORKSPACE}}/.claude/skills/ui-ux-pro-max"; do
+          [ -d "$d" ] && [ -z "$(ls -A "$d" 2>/dev/null)" ] && rm -rf "$d"
+        done
+        npx -y uipro-cli init --ai claude --offline >> {{.LOG}} 2>&1 || true
+        if [ -d "$HOME/.claude/skills/ui-ux-pro-max" ] || [ -d "{{.WORKSPACE}}/.claude/skills/ui-ux-pro-max" ]; then
+          echo "  ✓ UI UX Pro Max skill installed"
+        else
+          echo "  ⚠ UI UX Pro Max may be incomplete — run: npx uipro-cli init --ai claude"
+        fi
+
+  # ===========================================================================
+  # Step 5: GitNexus (Codebase Knowledge Graph)
+  # ===========================================================================
+
+  gitnexus:
+    desc: "Install GitNexus codebase knowledge graph"
+    deps: [nodejs]
+    status:
+      - command -v gitnexus
+    env:
+      NODE_OPTIONS: "{{.NODE_HEAP}}"
+    cmds:
+      - npm cache clean --force >> {{.LOG}} 2>&1 || true
+      - |
+        if npm install -g gitnexus >> {{.LOG}} 2>&1 && command -v gitnexus &>/dev/null; then
+          echo "  ✓ GitNexus installed"
+        else
+          echo "  ⚠ GitNexus deferred (memory-constrained) — available via npx"
+        fi
+
+  # ===========================================================================
+  # Step 6a: Dolt (version-controlled SQL — required by Beads)
+  # ===========================================================================
+
+  dolt:
+    desc: "Install Dolt database (required by Beads)"
+    status:
+      - command -v dolt
+    cmds:
+      - |
+        DOLT_OK=0
+
+        # Method 1: Homebrew (macOS)
+        if command -v brew &>/dev/null; then
+          brew install dolt >> {{.LOG}} 2>&1 && DOLT_OK=1 || true
+        fi
+
+        # Method 2: Official installer (Linux with sudo)
+        if [ "$DOLT_OK" -eq 0 ] && command -v sudo &>/dev/null; then
+          sudo bash -c 'curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/install.sh | bash' >> {{.LOG}} 2>&1 && DOLT_OK=1 || true
+        fi
+
+        # Method 3: No-sudo binary download (containers, rootless)
+        if [ "$DOLT_OK" -eq 0 ]; then
+          DOLT_BIN_DIR="$HOME/.local/bin"
+          mkdir -p "$DOLT_BIN_DIR"
+          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          ARCH="$(uname -m)"
+          case "$ARCH" in
+            x86_64)        ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *)             ARCH="amd64" ;;
+          esac
+          curl -fsSL "https://github.com/dolthub/dolt/releases/latest/download/dolt-${OS}-${ARCH}.tar.gz" \
+            | tar -xz -C "$DOLT_BIN_DIR" --strip-components=2 >> {{.LOG}} 2>&1 && DOLT_OK=1 || true
+          chmod +x "$DOLT_BIN_DIR/dolt" 2>/dev/null || true
+          export PATH="$DOLT_BIN_DIR:$PATH"
+        fi
+
+        if [ "$DOLT_OK" -eq 1 ] && command -v dolt &>/dev/null; then
+          echo "  ✓ Dolt installed"
+        else
+          echo "  ⚠ Dolt install failed — Beads will not work without it"
+        fi
+      - |
+        if command -v dolt &>/dev/null; then
+          GIT_NAME="$(git config --global user.name 2>/dev/null || echo 'TurboFlow Agent')"
+          GIT_EMAIL="$(git config --global user.email 2>/dev/null || echo 'agent@turboflow.local')"
+          dolt config --global --add user.name "$GIT_NAME" >> {{.LOG}} 2>&1 || true
+          dolt config --global --add user.email "$GIT_EMAIL" >> {{.LOG}} 2>&1 || true
+          echo "  ✓ Dolt identity: $GIT_NAME <$GIT_EMAIL>"
+        fi
+
+  # ===========================================================================
+  # Step 6b: Beads (cross-session memory)
+  # ===========================================================================
+
+  beads:
+    desc: "Install Beads cross-session memory (requires Dolt)"
+    deps: [dolt]
+    status:
+      - command -v bd
+    env:
+      NODE_OPTIONS: "{{.NODE_HEAP}}"
+    cmds:
+      - |
+        if npm install -g @beads/bd >> {{.LOG}} 2>&1 && command -v bd &>/dev/null; then
+          echo "  ✓ Beads installed"
+        elif pip install --user beads >> {{.LOG}} 2>&1 && command -v bd &>/dev/null; then
+          echo "  ✓ Beads installed (pip)"
+        else
+          echo "  ⚠ Beads install failed — run manually: npm i -g @beads/bd"
+        fi
+
+  # ===========================================================================
+  # Step 7: Workspace directories
+  # ===========================================================================
+
+  workspace:
+    desc: "Create workspace directories"
+    dir: "{{.WORKSPACE}}"
+    status:
+      - test -d "{{.WORKSPACE}}/src"
+      - test -d "{{.WORKSPACE}}/tests"
+      - test -d "{{.WORKSPACE}}/docs"
+      - test -d "{{.WORKSPACE}}/scripts"
+      - test -d "{{.WORKSPACE}}/config"
+      - test -d "{{.WORKSPACE}}/plans"
+    cmds:
+      - mkdir -p src tests docs scripts config plans agents
+      - echo "  ✓ Workspace directories created"
+
+  # ===========================================================================
+  # Step 8: Statusline Pro v4.0
+  # ===========================================================================
+
+  statusline:
+    desc: "Install Statusline Pro v4.0"
+    deps: [nodejs]
+    status:
+      - test -x "$HOME/.claude/turbo-flow-statusline.sh"
+      - grep -q turbo-flow-statusline "$HOME/.claude/settings.json" 2>/dev/null
+    cmds:
+      - mkdir -p "$HOME/.claude"
+      - |
+        STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
+        if [ -f setup.sh ]; then
+          # Extract the statusline heredoc from setup.sh
+          sed -n "/^cat > .* << 'STATUSLINE_SCRIPT'/,/^STATUSLINE_SCRIPT$/p" setup.sh \
+            | tail -n +2 | head -n -1 > "$STATUSLINE_SCRIPT" 2>/dev/null || true
+        fi
+
+        # Fallback: minimal statusline if extraction failed
+        if [ ! -s "$STATUSLINE_SCRIPT" ]; then
+          cat > "$STATUSLINE_SCRIPT" << 'EOF'
+        #!/bin/bash
+        INPUT=$(cat)
+        MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "Claude"' 2>/dev/null)
+        COST=$(echo "$INPUT" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null)
+        echo "[TF 4.0] $MODEL | \$$(printf '%.2f' $COST)"
+        EOF
+        fi
+        chmod +x "$STATUSLINE_SCRIPT"
+        echo "  ✓ Statusline script created"
+      - |
+        CLAUDE_SETTINGS="$HOME/.claude/settings.json"
+        STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
+        [ ! -f "$CLAUDE_SETTINGS" ] && echo '{}' > "$CLAUDE_SETTINGS"
+        node -e "
+          const fs = require('fs');
+          try {
+            const s = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
+            s.statusLine = { type: 'command', command: process.argv[2], padding: 0 };
+            fs.writeFileSync(process.argv[1], JSON.stringify(s, null, 2));
+          } catch(e) { process.exit(1); }
+        " "$CLAUDE_SETTINGS" "$STATUSLINE_SCRIPT" 2>/dev/null \
+          && echo "  ✓ Statusline configured in settings.json" \
+          || echo "  ⚠ settings.json config failed (non-critical)"
+
+  # ===========================================================================
+  # Step 9: CLAUDE.md generation
+  # ===========================================================================
+
+  claude-md:
+    desc: "Generate CLAUDE.md workspace context"
+    dir: "{{.WORKSPACE}}"
+    status:
+      - test -f "{{.WORKSPACE}}/CLAUDE.md"
+      - grep -q "TurboFlow 4.0" "{{.WORKSPACE}}/CLAUDE.md" 2>/dev/null
+    cmds:
+      - |
+        DEVPODS="{{.WORKSPACE}}/devpods"
+        if [ -f "$DEVPODS/setup.sh" ]; then
+          sed -n "/^cat > .* << 'CLAUDEEOF'/,/^CLAUDEEOF$/p" "$DEVPODS/setup.sh" \
+            | tail -n +2 | head -n -1 > CLAUDE.md 2>/dev/null || true
+        fi
+
+        if [ -s CLAUDE.md ] && grep -q "TurboFlow 4.0" CLAUDE.md 2>/dev/null; then
+          echo "  ✓ CLAUDE.md generated"
+        else
+          echo "  ⚠ CLAUDE.md generation failed — will be created on first setup.sh run"
+        fi
+
+  # ===========================================================================
+  # Step 10: Aliases + environment
+  # ===========================================================================
+
+  aliases:
+    desc: "Generate TurboFlow aliases and shell functions"
+    status:
+      - test -f "$HOME/.turboflow_aliases"
+      - grep -q "rf-swarm" "$HOME/.turboflow_aliases" 2>/dev/null
+    cmds:
+      - |
+        ALIAS_FILE="$HOME/.turboflow_aliases"
+        DEVPODS="{{.WORKSPACE}}/devpods"
+        if [ -f "$DEVPODS/setup.sh" ]; then
+          sed -n "/^cat > .* << 'ALIASEOF'/,/^ALIASEOF$/p" "$DEVPODS/setup.sh" \
+            | tail -n +2 | head -n -1 > "$ALIAS_FILE" 2>/dev/null || true
+        fi
+
+        if [ -s "$ALIAS_FILE" ] && grep -q "rf-swarm" "$ALIAS_FILE" 2>/dev/null; then
+          echo "  ✓ Aliases written to $ALIAS_FILE"
+        else
+          echo "  ⚠ Alias extraction failed — run setup.sh for full aliases"
+        fi
+      - |
+        ALIAS_FILE="$HOME/.turboflow_aliases"
+        for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+          if [ -f "$rc" ]; then
+            sed -i '/# === TURBO FLOW/,/# === END TURBO FLOW/d' "$rc" 2>/dev/null || true
+            grep -q 'turboflow_aliases' "$rc" 2>/dev/null || \
+              echo "[ -f \"$ALIAS_FILE\" ] && source \"$ALIAS_FILE\"" >> "$rc"
+          fi
+        done
+        echo "  ✓ Aliases sourced in shell rc"
+
+  # ===========================================================================
+  # Step 10b: MCP server registration
+  # ===========================================================================
+
+  mcp:
+    desc: "Register MCP servers (Ruflo, GitNexus)"
+    deps: [ruflo]
+    cmds:
+      - |
+        if command -v claude &>/dev/null; then
+          claude mcp remove claude-flow 2>/dev/null || true
+          claude mcp add ruflo -- npx -y ruflo@latest 2>/dev/null \
+            && echo "  ✓ Ruflo MCP registered" \
+            || echo "  ⚠ Ruflo MCP registration skipped"
+
+          npx gitnexus setup >> {{.LOG}} 2>&1 \
+            || claude mcp add gitnexus -- npx -y gitnexus mcp 2>/dev/null \
+            || echo "  ⚠ GitNexus MCP registration skipped"
+          echo "  ✓ MCP servers registered"
+        else
+          echo "  ⚠ Claude Code not found — MCP registration deferred"
+        fi
+
+  # ===========================================================================
+  # Utility tasks
+  # ===========================================================================
+
+  npm-cleanup:
+    desc: "Clean npm caches and temp files"
+    cmds:
+      - npm cache clean --force >> {{.LOG}} 2>&1 || true
+      - rm -rf /tmp/npm-* /tmp/nvm-* 2>/dev/null || true
+      - echo "  ✓ Caches cleaned"
+
+  beads-init:
+    desc: "Initialize Beads in current workspace (run after setup)"
+    deps: [dolt, beads]
+    dir: "{{.WORKSPACE}}"
+    status:
+      - test -d "{{.WORKSPACE}}/.beads"
+    cmds:
+      - bd init 2>/dev/null || true
+      - echo "  ✓ Beads initialized in workspace"
+
+  gitnexus-index:
+    desc: "Index workspace with GitNexus (run after setup)"
+    dir: "{{.WORKSPACE}}"
+    cmds:
+      - |
+        if command -v gitnexus &>/dev/null; then
+          gitnexus analyze >> {{.LOG}} 2>&1 || true
+        else
+          npx -y gitnexus analyze >> {{.LOG}} 2>&1 || true
+        fi
+        echo "  ✓ Workspace indexed"

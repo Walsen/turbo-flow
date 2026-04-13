@@ -147,12 +147,12 @@ RUN dolt config --global --add user.name "TurboFlow Agent" 2>/dev/null || true \
 # dynamic paths. We copy the devpods scripts which handle this.
 # =============================================================================
 
-# Copy devpods into the image
+# Copy devpods (includes Taskfile.yml, bootstrap.sh, devbox.json, scripts, context)
 COPY --chown=${USERNAME}:${USERNAME} devpods /workspace/devpods
 
-# Copy context files that agents need
-COPY --chown=${USERNAME}:${USERNAME} .beads /workspace/.beads
-COPY --chown=${USERNAME}:${USERNAME} CLAUDE.md /workspace/CLAUDE.md
+# Copy context files that agents need (bracket trick: no-fail if missing)
+COPY --chown=${USERNAME}:${USERNAME} .bead[s] /workspace/.beads/
+COPY --chown=${USERNAME}:${USERNAME} CLAUDE.m[d] /workspace/
 
 # =============================================================================
 # STEP 7: Workspace directories

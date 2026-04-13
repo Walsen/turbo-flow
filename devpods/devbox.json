@@ -1,0 +1,30 @@
+{
+  "packages": [
+    "nodejs_20",
+    "python3",
+    "gcc",
+    "gnumake",
+    "git",
+    "curl",
+    "jq",
+    "tmux",
+    "htop",
+    "go-task"
+  ],
+  "shell": {
+    "init_hook": [
+      "export NPM_CONFIG_PREFIX=$DEVBOX_PROJECT_ROOT/.devbox/npm-global",
+      "export PATH=$NPM_CONFIG_PREFIX/bin:$HOME/.local/bin:$HOME/.claude/bin:$PATH",
+      "export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1",
+      "echo '🚀 TurboFlow 4.0 Devbox shell ready'",
+      "echo '   Run: task setup'"
+    ],
+    "scripts": {
+      "setup": "task setup",
+      "quick": "task setup:quick",
+      "verify": "task verify",
+      "status": "task status",
+      "tmux": "task tmux"
+    }
+  }
+}
