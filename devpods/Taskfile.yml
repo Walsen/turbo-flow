@@ -63,14 +63,15 @@ tasks:
       - task: aliases
       - task: mcp
       - task: npm-cleanup
-      - echo ""
-      - echo "╔══════════════════════════════════════════════════╗"
-      - echo "║       ✓ TurboFlow 4.0 Setup Complete             ║"
-      - echo "╚══════════════════════════════════════════════════╝"
-      - echo ""
-      - echo "  Next → run 'claude' (everything else is automatic)"
-      - echo "  Verify → task verify  (from devpods/)"
-      - echo ""
+      - |
+          echo ""
+          echo "======================================================"
+          echo "  TurboFlow 4.0 Setup Complete"
+          echo "======================================================"
+          echo ""
+          echo "  Next: run 'claude' (everything else is automatic)"
+          echo "  Verify: task verify (from devpods/)"
+          echo ""
 
   setup:quick:
     desc: "Quick setup — core tools only (system deps + Node + Claude + Ruflo)"
@@ -99,30 +100,31 @@ tasks:
       - task: aliases
       - task: mcp
       - task: npm-cleanup
-      - echo ""
-      - echo "╔══════════════════════════════════════════════════╗"
-      - echo "║   ✓ TurboFlow 4.0 Setup Complete (Bedrock)       ║"
-      - echo "╚══════════════════════════════════════════════════╝"
-      - echo ""
-      - echo "  Provider: Amazon Bedrock"
-      - echo "  Next → run 'claude' (uses AWS credentials, no Anthropic key needed)"
-      - echo ""
+      - |
+          echo ""
+          echo "======================================================"
+          echo "  TurboFlow 4.0 Setup Complete (Bedrock)"
+          echo "======================================================"
+          echo ""
+          echo "  Provider: Amazon Bedrock"
+          echo "  Next: run 'claude' (uses AWS credentials, no Anthropic key needed)"
+          echo ""
 
   verify:
     desc: "Post-setup verification"
     cmds:
       - |
-        echo "╔══════════════════════════════════════════════════╗"
-        echo "║      🔍 TurboFlow 4.0 Post-Setup Verify         ║"
-        echo "╚══════════════════════════════════════════════════╝"
+        echo "======================================================"
+        echo "  TurboFlow 4.0 Post-Setup Verify"
+        echo "======================================================"
         echo ""
         PASS=0; ISSUES=0
 
         check() {
           if eval "$2" &>/dev/null; then
-            echo "  ✓ $1"; PASS=$((PASS+1))
+            echo "  OK $1"; PASS=$((PASS+1))
           else
-            echo "  ⚠ $1"; ISSUES=$((ISSUES+1))
+            echo "  !! $1"; ISSUES=$((ISSUES+1))
           fi
         }
 
@@ -151,15 +153,15 @@ tasks:
     cmds:
       - |
         echo "TurboFlow 4.0 Status"
-        echo "━━━━━━━━━━━━━━━━━━━━"
-        command -v node    &>/dev/null && echo "  ✓ Node.js $(node -v)"          || echo "  ✗ Node.js"
-        command -v claude  &>/dev/null && echo "  ✓ Claude Code"                 || echo "  ✗ Claude Code"
-        npx ruflo@latest --version &>/dev/null && echo "  ✓ Ruflo"              || echo "  ✗ Ruflo"
-        command -v dolt    &>/dev/null && echo "  ✓ Dolt"                        || echo "  ✗ Dolt"
-        command -v bd      &>/dev/null && echo "  ✓ Beads"                       || echo "  ✗ Beads"
-        command -v gitnexus &>/dev/null && echo "  ✓ GitNexus"                   || echo "  ○ GitNexus (available via npx)"
-        [ -f "{{.WORKSPACE}}/CLAUDE.md" ] && echo "  ✓ CLAUDE.md"               || echo "  ✗ CLAUDE.md"
-        [ -f "$HOME/.turboflow_aliases" ] && echo "  ✓ Aliases"                 || echo "  ✗ Aliases"
+        echo "===================="
+        command -v node    &>/dev/null && echo "  OK Node.js $(node -v)"       || echo "  MISSING Node.js"
+        command -v claude  &>/dev/null && echo "  OK Claude Code"              || echo "  MISSING Claude Code"
+        npx ruflo@latest --version &>/dev/null && echo "  OK Ruflo"            || echo "  MISSING Ruflo"
+        command -v dolt    &>/dev/null && echo "  OK Dolt"                     || echo "  MISSING Dolt"
+        command -v bd      &>/dev/null && echo "  OK Beads"                    || echo "  MISSING Beads"
+        command -v gitnexus &>/dev/null && echo "  OK GitNexus"                || echo "  -- GitNexus (available via npx)"
+        [ -f "{{.WORKSPACE}}/CLAUDE.md" ] && echo "  OK CLAUDE.md"            || echo "  MISSING CLAUDE.md"
+        [ -f "$HOME/.turboflow_aliases" ] && echo "  OK Aliases"              || echo "  MISSING Aliases"
 
   tmux:
     desc: "Launch tmux workspace (4 panes)"
