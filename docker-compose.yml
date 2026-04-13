@@ -1,0 +1,54 @@
+# =============================================================================
+# TurboFlow 4.0 — Docker Compose
+#
+# Usage:
+#   docker compose up -d
+#   docker compose exec turboflow bash
+#
+# With API key:
+#   ANTHROPIC_API_KEY=sk-... docker compose up -d
+#
+# Or create a .env file:
+#   echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+#   docker compose up -d
+# =============================================================================
+
+services:
+  turboflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: turboflow-4.0
+    hostname: turboflow
+    stdin_open: true    # -i
+    tty: true           # -t
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+      - WORKSPACE=/workspace
+      - WORKSPACE_FOLDER=/workspace
+    volumes:
+      # Mount your project code here
+      - ./:/workspace
+
+      # Persist Claude Code auth and settings across restarts
+      - claude-config:/home/vscode/.claude
+
+      # Persist npm global installs across rebuilds
+      - npm-global:/home/vscode/.npm-global
+
+      # Persist Dolt data (Beads backend)
+      - dolt-data:/home/vscode/.dolt
+
+      # Persist git config (optional — mount your host .gitconfig)
+      # - ~/.gitconfig:/home/vscode/.gitconfig:ro
+    ports:
+      - "3000:3000"   # Dev server
+      - "8080:8080"   # GitNexus web UI
+    mem_limit: 8g
+    restart: unless-stopped
+
+volumes:
+  claude-config:
+  npm-global:
+  dolt-data:

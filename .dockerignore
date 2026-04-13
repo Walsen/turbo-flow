@@ -1,0 +1,53 @@
+# =============================================================================
+# TurboFlow 4.0 — Docker Build Ignore
+# =============================================================================
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Node
+node_modules
+.npm
+npm-debug.log*
+
+# Build artifacts
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp
+
+# Older versions (not needed in container)
+V1/
+V2/
+V3/
+
+# GitHub workflows (not needed in container)
+.github/
+
+# Large docs (not needed at runtime)
+AGENTDB-VS-RUVECTOR.md
+GUIAS_CONFIGURACION_TURBO_FLOW.md
+GUIA_COMPLETA_DEVPOD_RACKSPACE.md
+GUIA_SUPERVIVENCIA_RACKSPACE_KUBERNETES.md
+Rackspace_Kubernetes_Cluster_Survival_Guide.md
+TurboFlow-Validation-Report.pdf
+TurboFlow_4.0_Ruflo_Migration.pdf
+V4_Turbo\ Flow\ v4\ +\ Ruflo\ v3.5\ —\ The\ Definitive\ Prompt\ &\ Workflow\ Guide.md
+Addendum:\ Git\ Operations,\ Slash\ Commands\ &\ GitHub\ Integration.md
+README-ES.MD
