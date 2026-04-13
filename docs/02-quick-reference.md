@@ -588,10 +588,10 @@ LINE 3: [+150] [-50] | [READY]
 |----------|---------|
 | DevPod | `devpod up https://github.com/marcuspat/turbo-flow --ide vscode` |
 | Codespaces | Push to GitHub → Open in Codespace → auto-runs |
-| Manual | `cd turbo-flow && ./devpods/setup.sh` |
-| macOS/Linux | See `macosx_linux_setup.md` |
-| Rackspace | See `spot_rackspace_setup_guide.md` |
-| Google Cloud | See `google_cloud_shell_setup.md` |
+| Manual | `cd turbo-flow && bash devpods/bootstrap.sh` |
+| macOS/Linux | See `docs/05-setup-macos-linux.md` |
+| Rackspace | See `docs/09-setup-rackspace-spot.md` |
+| Google Cloud | See `docs/07-setup-google-cloud-shell.md` |
 
 ---
 

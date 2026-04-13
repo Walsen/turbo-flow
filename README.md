@@ -150,11 +150,10 @@ devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 # Codespaces
 # Push to GitHub → Open in Codespace → runs automatically
 
-# Manual
+# Manual (via bootstrap — installs Task runner, then runs all setup steps)
 git clone https://github.com/adventurewavelabs/turbo-flow -b main
 cd turbo-flow
-chmod +x devpods/setup.sh
-./devpods/setup.sh
+bash devpods/bootstrap.sh
 source ~/.bashrc
 turbo-status
 ```
@@ -163,7 +162,7 @@ turbo-status
 
 ## What Gets Installed
 
-The `devpods/setup.sh` script installs the complete stack in **10 automated steps**:
+The `devpods/Taskfile.yml` (invoked via `bootstrap.sh`) installs the complete stack in **10 idempotent steps**:
 
 ### Step 1: System Prerequisites
 
@@ -384,14 +383,19 @@ gnx-wiki             # Generate repo wiki from graph
 
 ```
 turbo-flow/
-├── V3/                          ← archived v3.0-v3.4.1 (Claude Flow era)
-├── .claude/                     ← skills, agents, settings
+├── .devcontainer/               ← devcontainer config
 ├── devpods/
-│   ├── setup.sh                 ← main setup script
-│   ├── post-setup.sh            ← post-setup verification
-│   └── context/                 ← devpod context files
-├── scripts/
-│   └── generate-claude-md.sh
+│   ├── bootstrap.sh             ← universal entry point
+│   ├── Taskfile.yml             ← idempotent setup tasks (replaces setup.sh)
+│   ├── devbox.json              ← optional Nix-based env
+│   ├── tmux-workspace.sh        ← tmux 4-pane layout
+│   ├── templates/               ← CLAUDE.md, aliases, statusline
+│   ├── context/                 ← agent context files
+│   └── scripts/                 ← K8s utilities
+├── docs/                        ← numbered documentation (01-12)
+│   └── es/                      ← Spanish translations (13-16)
+├── Dockerfile                   ← pre-baked container image
+├── docker-compose.yml           ← local Docker usage
 ├── CLAUDE.md                    ← workspace context (active)
 └── README.md
 ```
@@ -410,8 +414,8 @@ turbo-status
 # 3. Get help
 turbo-help
 
-# 4. Run post-setup verification (13 checks)
-# ./devpods/post-setup.sh
+# 4. Run post-setup verification
+# task verify  (from devpods/)
 ```
 
 ---

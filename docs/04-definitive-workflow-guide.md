@@ -1609,23 +1609,23 @@ devpod stop [workspace]                                # Stop workspace
 devpod delete [workspace]                              # Delete workspace
 ```
 
-> DevPod provider setup details: see `devpod_provider_setup_guide.md` in the repo.
+> DevPod provider setup details: see `docs/08-setup-devpod-providers.md` in the repo.
 
 ### GitHub Codespaces
 
-Push to GitHub → Open in Codespace → `.devcontainer/devcontainer.json` triggers `devpods/setup.sh` automatically. See `github_codespaces_setup.md` for details.
+Push to GitHub → Open in Codespace → `.devcontainer/devcontainer.json` triggers `devpods/bootstrap.sh` automatically. See `docs/06-setup-github-codespaces.md` for details.
 
 ### Rackspace Spot Instances
 
-See `spot_rackspace_setup_guide.md` and `Rackspace_Kubernetes_Cluster_Survival_Guide.md` — Kubernetes cluster setup with auto-scaling, cost-optimized for long-running agent workloads. Spanish guide: `GUIA_COMPLETA_DEVPOD_RACKSPACE.md` and `GUIA_SUPERVIVENCIA_RACKSPACE_KUBERNETES.md`.
+See `docs/09-setup-rackspace-spot.md` and `docs/10-kubernetes-survival-guide.md` — Kubernetes cluster setup with auto-scaling, cost-optimized for long-running agent workloads. Spanish guide: `docs/es/14-guia-completa-devpod-rackspace.md` and `docs/es/15-guia-supervivencia-rackspace-kubernetes.md`.
 
 ### macOS / Linux Native
 
-See `macosx_linux_setup.md` — direct installation without containers.
+See `docs/05-setup-macos-linux.md` — direct installation without containers.
 
 ### Google Cloud Shell
 
-See `google_cloud_shell_setup.md` — free tier suitable for evaluation, persistent home directory.
+See `docs/07-setup-google-cloud-shell.md` — free tier suitable for evaluation, persistent home directory.
 
 ### Migrating from v3.x
 

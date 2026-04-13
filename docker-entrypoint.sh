@@ -89,9 +89,11 @@ ALIASEOF
 
     # 5. Statusline Pro
     STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
-    if [ -f /workspace/devpods/setup.sh ] && [ ! -f "$STATUSLINE_SCRIPT" ]; then
+    if [ -f /workspace/devpods/templates/statusline.sh ] && [ ! -f "$STATUSLINE_SCRIPT" ]; then
         mkdir -p "$HOME/.claude" 2>/dev/null || true
-        echo "  ○ Statusline will be configured on first claude session"
+        cp /workspace/devpods/templates/statusline.sh "$STATUSLINE_SCRIPT"
+        chmod +x "$STATUSLINE_SCRIPT"
+        echo "  ✓ Statusline installed"
     fi
 
     # 6. API key check
