@@ -68,46 +68,63 @@
 
 ## Architecture
 
-```
-+------------------------------------------------------------------+
-|              TURBO FLOW v4.0 — Adventure Wave Labs                |
-+------------------------------------------------------------------+
-|  INTERFACE                                                        |
-|  +---------------+  +---------------+  +---------------+          |
-|  | Claude Code   |  |  Open WebUI   |  |  Statusline   |          |
-|  |     CLI       |  |  (4 instances)|  |   Pro v4.0    |          |
-|  +---------------+  +---------------+  +---------------+          |
-+------------------------------------------------------------------+
-|  ORCHESTRATION: Ruflo v3.5                                        |
-|  60+ Agents | 215+ MCP Tools | Auto-activated Skills              |
-|  AgentDB v3 | RuVector WASM | SONA | 3-Tier Model Routing        |
-|  59 MCP Browser Tools | Observability | Gating                    |
-+------------------------------------------------------------------+
-|  PLUGINS (6)                                                      |
-|  +--------------------------------------------------------------+ |
-|  | Agentic QE | Code Intel | Test Intel | Perf | Teammate | Gas | |
-|  +--------------------------------------------------------------+ |
-+------------------------------------------------------------------+
-|  CODEBASE INTELLIGENCE: GitNexus                                  |
-|  Knowledge Graph | Blast Radius Detection | MCP Server            |
-+------------------------------------------------------------------+
-|  MEMORY (Three-Tier)                                              |
-|  +---------------+  +---------------+  +---------------+          |
-|  |    Beads      |  | Native Tasks  |  |   AgentDB     |          |
-|  |  project/git  |  |   session     |  |  + RuVector   |          |
-|  |    JSONL      |  |  ~/.claude/   |  |  WASM accel   |          |
-|  +---------------+  +---------------+  +---------------+          |
-+------------------------------------------------------------------+
-|  ISOLATION                                                        |
-|  Git Worktrees per Agent | PG Vector Schema per Worktree          |
-|  Auto GitNexus Indexing | Agent Teams (experimental)              |
-+------------------------------------------------------------------+
-|  SKILLS                                                           |
-|  UI UX Pro Max | OpenSpec | 36+ Ruflo Auto-activated Skills       |
-+------------------------------------------------------------------+
-|  INFRASTRUCTURE                                                   |
-|  DevPod | Codespaces | Rackspace Spot                            |
-+------------------------------------------------------------------+
+```mermaid
+block-beta
+    columns 1
+
+    block:INTERFACE["INTERFACE"]
+        columns 3
+        CLI["Claude Code CLI"]
+        WebUI["Open WebUI (4 instances)"]
+        Status["Statusline Pro v4.0"]
+    end
+
+    block:ORCH["ORCHESTRATION — Ruflo v3.5"]
+        columns 1
+        O1["60+ Agents | 215+ MCP Tools | Auto-activated Skills"]
+        O2["AgentDB v3 | RuVector WASM | SONA | 3-Tier Model Routing"]
+        O3["59 MCP Browser Tools | Observability | Gating"]
+    end
+
+    block:PLUGINS["PLUGINS (6)"]
+        columns 6
+        P1["Agentic QE"]
+        P2["Code Intel"]
+        P3["Test Intel"]
+        P4["Perf"]
+        P5["Teammate"]
+        P6["Gastown"]
+    end
+
+    block:INTEL["CODEBASE INTELLIGENCE — GitNexus"]
+        columns 1
+        I1["Knowledge Graph | Blast Radius Detection | MCP Server"]
+    end
+
+    block:MEMORY["MEMORY (Three-Tier)"]
+        columns 3
+        M1["Beads\nproject/git JSONL"]
+        M2["Native Tasks\nsession ~/.claude/"]
+        M3["AgentDB\n+ RuVector WASM"]
+    end
+
+    block:ISO["ISOLATION"]
+        columns 1
+        IS1["Git Worktrees per Agent | PG Vector Schema per Worktree"]
+        IS2["Auto GitNexus Indexing | Agent Teams (experimental)"]
+    end
+
+    block:SKILLS["SKILLS"]
+        columns 1
+        SK1["UI UX Pro Max | OpenSpec | 36+ Ruflo Auto-activated Skills"]
+    end
+
+    block:INFRA["INFRASTRUCTURE"]
+        columns 3
+        INF1["DevPod"]
+        INF2["Codespaces"]
+        INF3["Rackspace Spot"]
+    end
 ```
 
 ---
