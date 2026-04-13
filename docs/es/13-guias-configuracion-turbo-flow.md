@@ -22,46 +22,13 @@
 
 Después de que Google Cloud Shell se inicie, ejecuta este comando:
 ```bash
-touch boot.sh && chmod +x boot.sh && vi boot.sh
+bash devpods/bootstrap.sh
 ```
 
 Luego pega el script a continuación y ejecútalo para terminar de configurar Turbo Flow en Google Cloud Shell:
 
 ```bash
-#!/bin/bash
-# Clonar el repositorio
-echo "Clonando repositorio..."
-git clone https://github.com/marcuspat/turbo-flow-claude.git
-
-# Verificar si la clonación fue exitosa
-if [ $? -ne 0 ]; then
-    echo "Error: Falló al clonar repositorio"
-    exit 1
-fi
-
-# Navegar al directorio clonado
-cd turbo-flow-claude
-
-# Mover directorio devpods al directorio padre
-echo "Moviendo directorio devpods..."
-mv devpods ..
-
-# Regresar al directorio padre
-cd ..
-
-# Eliminar el repositorio clonado
-echo "Eliminando directorio turbo-flow-claude..."
-rm -rf turbo-flow-claude
-
-# Hacer ejecutables todos los scripts shell en devpods
-echo "Haciendo scripts ejecutables..."
-chmod +x ./devpods/*.sh
-
-# Ejecutar el script de configuración
-echo "Ejecutando codespace_setup.sh..."
-./devpods/codespace_setup.sh
-
-echo "¡Script completado!"
+bash devpods/bootstrap.sh
 ```
 
 ### Pasos de Instalación
@@ -79,46 +46,13 @@ echo "¡Script completado!"
 
 Después de que el codespace se inicie, ejecuta este comando:
 ```bash
-touch boot.sh && chmod +x boot.sh && vi boot.sh
+bash devpods/bootstrap.sh
 ```
 
 Luego pega el script a continuación y ejecútalo para terminar de configurar Turbo Flow en GitHub Codespaces:
 
 ```bash
-#!/bin/bash
-# Clonar el repositorio
-echo "Clonando repositorio..."
-git clone https://github.com/marcuspat/turbo-flow-claude.git
-
-# Verificar si la clonación fue exitosa
-if [ $? -ne 0 ]; then
-    echo "Error: Falló al clonar repositorio"
-    exit 1
-fi
-
-# Navegar al directorio clonado
-cd turbo-flow-claude
-
-# Mover directorio devpods al directorio padre
-echo "Moviendo directorio devpods..."
-mv devpods ..
-
-# Regresar al directorio padre
-cd ..
-
-# Eliminar el repositorio clonado
-echo "Eliminando directorio turbo-flow-claude..."
-rm -rf turbo-flow-claude
-
-# Hacer ejecutables todos los scripts shell en devpods
-echo "Haciendo scripts ejecutables..."
-chmod +x ./devpods/*.sh
-
-# Ejecutar el script de configuración
-echo "Ejecutando codespace_setup.sh..."
-./devpods/codespace_setup.sh
-
-echo "¡Script completado!"
+bash devpods/bootstrap.sh
 ```
 
 ### Pasos de Instalación
@@ -148,31 +82,15 @@ Para configuración local en tu máquina macOS o Linux:
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone https://github.com/marcuspat/turbo-flow-claude.git
+git clone https://github.com/adventurewavelabs/turbo-flow.git
 ```
 
 ### 2. Ejecutar el Instalador
 
-Navega al directorio `devpods`:
+Ejecuta el script de bootstrap desde la raíz del repositorio:
 ```bash
-cd turbo-flow-claude/devpods
-```
-
-Haz los scripts de arranque ejecutables (solo necesitas hacer esto una vez):
-```bash
-chmod +x boot_macosx.sh boot_linux.sh
-```
-
-Ejecuta el script correcto para tu sistema operativo:
-
-**En 🍎 macOS:**
-```bash
-./boot_macosx.sh
-```
-
-**En 🐧 Linux:**
-```bash
-./boot_linux.sh
+cd turbo-flow
+bash devpods/bootstrap.sh
 ```
 
 ### 3. Después de Que el Script Termine
@@ -404,7 +322,7 @@ cf-memory-import backup.db
 ### Documentación
 - **Claude-Flow**: https://github.com/ruvnet/claude-flow/wiki
 - **Agentic-Flow**: https://github.com/ruvnet/agentic-flow
-- **Turbo-Flow-Claude**: https://github.com/marcuspat/turbo-flow-claude
+- **Turbo-Flow**: https://github.com/adventurewavelabs/turbo-flow
 
 ### Guías
 - **Guía de Alias**: Ver `GUIA_ALIAS_CLAUDE_FLOW_AGENTIC_FLOW.md`
@@ -412,8 +330,8 @@ cf-memory-import backup.db
 - **Guía K8s**: Ver `GUIA_SUPERVIVENCIA_RACKSPACE_KUBERNETES.md`
 
 ### Soporte
-- **GitHub Issues**: https://github.com/marcuspat/turbo-flow-claude/issues
-- **Discusiones**: https://github.com/marcuspat/turbo-flow-claude/discussions
+- **GitHub Issues**: https://github.com/adventurewavelabs/turbo-flow/issues
+- **Discusiones**: https://github.com/adventurewavelabs/turbo-flow/discussions
 
 ---
 
@@ -504,9 +422,9 @@ af-private tester "Ejecutar pruebas en datos privados"
 
 ```bash
 # 1. Clonar e instalar (1 minuto)
-git clone https://github.com/marcuspat/turbo-flow-claude.git
-cd turbo-flow-claude/devpods
-./boot_linux.sh  # o boot_macosx.sh
+git clone https://github.com/adventurewavelabs/turbo-flow.git
+cd turbo-flow
+bash devpods/bootstrap.sh
 
 # 2. Conectar a tmux (10 segundos)
 tmux attach -t workspace

@@ -22,7 +22,7 @@
 ## Acerca de Creando Tu Matrix Labs
 
 <div align="center">
-  <img src="https://github.com/marcuspat/turbo-flow/raw/main/CMLabs.png" alt="Creando Tu Matrix Labs" width="600">
+  <img src="https://github.com/adventurewavelabs/turbo-flow/raw/main/CMLabs.png" alt="Creando Tu Matrix Labs" width="600">
 </div>
 
 #
@@ -146,16 +146,15 @@ sudo install devpod /usr/local/bin
 
 ```bash
 # DevPod (recomendado)
-devpod up https://github.com/creandotumatrixlabs/turbo-flow --ide vscode
+devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 
 # Codespaces
 # Sube a GitHub → Abre en Codespace → se ejecuta automáticamente
 
 # Manual
-git clone https://github.com/creandotumatrixlabs/turbo-flow -b main
+git clone https://github.com/adventurewavelabs/turbo-flow -b main
 cd turbo-flow
-chmod +x devpods/setup.sh
-./devpods/setup.sh
+bash devpods/bootstrap.sh
 source ~/.bashrc
 turbo-status
 ```
@@ -164,7 +163,7 @@ turbo-status
 
 ## Qué se Instala
 
-El script `devpods/setup.sh` instala el stack completo en **10 pasos automatizados**:
+El script `devpods/bootstrap.sh` (via Taskfile.yml) instala el stack completo en **10 pasos automatizados**:
 
 ### Paso 1: Requisitos del Sistema
 
@@ -388,8 +387,9 @@ turbo-flow/
 ├── V3/                          ← archivado v3.0-v3.4.1 (era Claude Flow)
 ├── .claude/                     ← habilidades, agentes, configuración
 ├── devpods/
-│   ├── setup.sh                 ← script principal de configuración
-│   ├── post-setup.sh            ← verificación post-configuración
+│   ├── bootstrap.sh             ← punto de entrada universal
+│   ├── Taskfile.yml             ← tareas de configuración idempotentes
+│   ├── templates/               ← aliases, statusline, plantilla CLAUDE.md
 │   └── context/                 ← archivos de contexto devpod
 ├── scripts/
 │   └── generate-claude-md.sh
@@ -412,7 +412,7 @@ turbo-status
 turbo-help
 
 # 4. Ejecutar verificación post-configuración (13 chequeos)
-# ./devpods/post-setup.sh
+# task verify
 ```
 
 ---
@@ -434,7 +434,7 @@ turbo-help
 | Recurso | Enlace |
 |:--------|:-------|
 | Creando Tu Matrix Labs | [GitHub: creandotumatrixlabs](https://github.com/creandotumatrixlabs) |
-| Turbo Flow | [GitHub: creandotumatrixlabs/turbo-flow](https://github.com/creandotumatrixlabs/turbo-flow) |
+| Turbo Flow | [GitHub: adventurewavelabs/turbo-flow](https://github.com/adventurewavelabs/turbo-flow) |
 | Ruflo | [GitHub: ruvnet/ruflo](https://github.com/ruvnet/ruflo) |
 | OpenSpec | [npm: @fission-ai/openspec](https://npmjs.com/package/@fission-ai/openspec) |
 | Agentic QE | [npm: agentic-qe](https://npmjs.com/package/agentic-qe) |

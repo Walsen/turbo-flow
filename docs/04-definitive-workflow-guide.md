@@ -92,32 +92,31 @@ The core loop is 4 phases:
 ```bash
 # macOS
 brew install loft-sh/devpod/devpod
-devpod up https://github.com/marcuspat/turbo-flow --ide vscode
+devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 
 # Linux
 curl -L -o devpod "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-amd64"
 sudo install devpod /usr/local/bin
-devpod up https://github.com/marcuspat/turbo-flow --ide vscode
+devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 
 # Windows
 choco install devpod
-devpod up https://github.com/marcuspat/turbo-flow --ide vscode
+devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 ```
 
 ### GitHub Codespaces
 
 ```
 Push to GitHub → Open in Codespace → .devcontainer runs automatically.
-The devpods/setup.sh script installs the complete stack.
+The devpods/bootstrap.sh script installs the complete stack.
 ```
 
 ### Manual install
 
 ```bash
-git clone https://github.com/marcuspat/turbo-flow -b main
+git clone https://github.com/adventurewavelabs/turbo-flow -b main
 cd turbo-flow
-chmod +x devpods/setup.sh
-./devpods/setup.sh
+bash devpods/bootstrap.sh
 source ~/.bashrc
 turbo-status
 ```
@@ -154,7 +153,7 @@ npx ruflo@latest hooks pretrain
 ### Post-setup verification (13 checks)
 
 ```bash
-./post-devpods/setup.sh    # Runs 13 automated checks on the full stack
+task verify    # Runs 13 automated checks on the full stack
 ```
 
 ### Generate CLAUDE.md from project context
@@ -172,7 +171,7 @@ npx ruflo@latest hooks pretrain
 ### UI UX Pro Max skill (design)
 
 ```bash
-# Installed as part of Step 4 of devpods/setup.sh
+# Installed as part of the uipro task in Taskfile.yml
 # uipro-cli provides: component patterns, accessibility, responsive layouts, design tokens
 # Auto-activated when describing UI/UX work — no manual invocation needed
 ```
@@ -764,7 +763,7 @@ bd daemon start                  # Start auto-sync daemon
 bd daemon stop                   # Stop daemon
 ```
 
-### TurboFlow Aliases (shell wrappers from devpods/setup.sh)
+### TurboFlow Aliases (from devpods/templates/turboflow_aliases.sh)
 
 ```bash
 bd-ready             # → bd ready (check project state)
@@ -1603,7 +1602,7 @@ If cost is above $10, suggest model tier adjustments.
 ### DevPod (recommended)
 
 ```bash
-devpod up https://github.com/marcuspat/turbo-flow --ide vscode   # Launch with VS Code
+devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode   # Launch with VS Code
 devpod list                                            # List active workspaces
 devpod stop [workspace]                                # Stop workspace
 devpod delete [workspace]                              # Delete workspace
@@ -1695,7 +1694,7 @@ Update [package] from [old version] to [new version]:
 
 ```
 I just cloned [repo-url]. Onboard me completely:
-1. Run devpods/setup.sh (or rf-init if TF already installed)
+1. Run bash devpods/bootstrap.sh (or rf-init if TF already installed)
 2. gitnexus analyze — build the knowledge graph
 3. gitnexus wiki — generate repo documentation
 4. gitnexus serve — start visual explorer so I can browse the graph
@@ -1799,7 +1798,7 @@ Show me the current provider configuration and cost breakdown.
 
 ```
 Day 1 — Onboard:
-1. Clone the repo, run devpods/setup.sh
+1. Clone the repo, run bash devpods/bootstrap.sh
 2. gnx-analyze — build knowledge graph
 3. gnx-wiki — generate repo documentation for myself
 4. hooks-train — deep pretrain on codebase
@@ -2034,7 +2033,7 @@ HANDOFF:    bd create (remaining work) → bd close (done items) → gnx-analyze
 
 ### All Aliases → Native Commands
 
-> **Note:** These are TurboFlow shell aliases defined in `devpods/setup.sh`. They wrap the native CLIs (`ruflo`, `bd`, `gitnexus`, `openspec`). If an alias doesn't work, use the native command directly.
+> **Note:** These are TurboFlow shell aliases defined in `devpods/templates/turboflow_aliases.sh`. They wrap the native CLIs (`ruflo`, `bd`, `gitnexus`, `openspec`). If an alias doesn't work, use the native command directly.
 
 | Alias | Native Command |
 |-------|---------------|

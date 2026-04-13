@@ -586,7 +586,7 @@ LINE 3: [+150] [-50] | [READY]
 
 | Platform | Command |
 |----------|---------|
-| DevPod | `devpod up https://github.com/marcuspat/turbo-flow --ide vscode` |
+| DevPod | `devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode` |
 | Codespaces | Push to GitHub → Open in Codespace → auto-runs |
 | Manual | `cd turbo-flow && bash devpods/bootstrap.sh` |
 | macOS/Linux | See `docs/05-setup-macos-linux.md` |

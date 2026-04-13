@@ -1,13 +1,12 @@
 # Turbo Flow Quick Setup
 
-This guide explains how to run the installer scripts for the `turbo-flow-claude` environment.
+This guide explains how to run the bootstrap script for the `turbo-flow` environment.
 
-These scripts will automatically:
+The bootstrap script will automatically:
 
 1.  Install all required system dependencies (Node.js, Python, Tmux, etc.).
-2.  Copy the `devpods` configuration to your local machine.
-3.  Patch the scripts for compatibility.
-4.  Run the `setup.sh`, `post-setup.sh`, and `tmux-workspace.sh` scripts in order to complete the installation.
+2.  Run the idempotent Taskfile.yml setup tasks.
+3.  Configure the environment and launch the tmux workspace.
 
 -----
 
@@ -18,36 +17,17 @@ These scripts will automatically:
 First, clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/marcuspat/turbo-flow-claude.git
+git clone https://github.com/adventurewavelabs/turbo-flow.git
 ```
 
-### 2\. Run the Installer
+### 2\. Run the Bootstrap Script
 
-1.  Navigate into the `devpods` directory:
+Run the bootstrap script from the repo root:
 
-    ```bash
-    cd turbo-flow-claude/devpods
-    ```
-
-2.  Make the boot scripts executable (you only need to do this once):
-
-    ```bash
-    chmod +x boot_macosx.sh boot_linux.sh
-    ```
-
-3.  Run the correct script for your operating system:
-
-    **On  macOS:**
-
-    ```bash
-    ./boot_macosx.sh
-    ```
-
-    **On 🐧 Linux:**
-
-    ```bash
-    ./boot_linux.sh
-    ```
+```bash
+cd turbo-flow
+bash devpods/bootstrap.sh
+```
 
 -----
 

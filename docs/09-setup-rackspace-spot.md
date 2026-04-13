@@ -99,7 +99,7 @@ mkdir -p .devcontainer
 
 # Download the devcontainer configuration
 curl -o .devcontainer/devcontainer.json \
-  https://raw.githubusercontent.com/marcuspat/turbo-flow-claude/refs/heads/main/devpods/rackspace-devcontainer.json
+  https://raw.githubusercontent.com/adventurewavelabs/turbo-flow/refs/heads/main/devpods/rackspace-devcontainer.json
 
 # Commit and push
 git add .devcontainer/devcontainer.json
@@ -130,9 +130,9 @@ Create `.devcontainer/devcontainer.json` in your repository with this content:
         "DEVPOD_WORKSPACE_FOLDER": "${containerWorkspaceFolder}",
         "AGENTS_DIR": "${containerWorkspaceFolder}/agents"
     },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y tmux htop && cd ${containerWorkspaceFolder} && git clone https://github.com/marcuspat/turbo-flow-claude && cp -r turbo-flow-claude/devpods . && rm -rf turbo-flow-claude && chmod +x ${containerWorkspaceFolder}/devpods/*.sh 2>/dev/null || true && if [ -f ${containerWorkspaceFolder}/devpods/setup.sh ]; then ${containerWorkspaceFolder}/devpods/setup.sh; fi",
+    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y tmux htop && cd ${containerWorkspaceFolder} && git clone https://github.com/adventurewavelabs/turbo-flow && cp -r turbo-flow/devpods . && rm -rf turbo-flow && bash ${containerWorkspaceFolder}/devpods/bootstrap.sh",
     "postStartCommand": "echo '✅ Container started, waiting for VS Code...'",
-    "postAttachCommand": "if [ -f ${containerWorkspaceFolder}/devpods/post-setup.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/post-setup.sh && ${containerWorkspaceFolder}/devpods/post-setup.sh; fi && if [ -f ${containerWorkspaceFolder}/devpods/tmux-workspace.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/tmux-workspace.sh && sed 's/tmux attach-session -t workspace/echo \"✅ tmux workspace ready\"/' ${containerWorkspaceFolder}/devpods/tmux-workspace.sh | bash; fi",
+    "postAttachCommand": "if [ -f ${containerWorkspaceFolder}/devpods/tmux-workspace.sh ]; then chmod +x ${containerWorkspaceFolder}/devpods/tmux-workspace.sh && sed 's/tmux attach-session -t workspace/echo \"✅ tmux workspace ready\"/' ${containerWorkspaceFolder}/devpods/tmux-workspace.sh | bash; fi",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -162,7 +162,7 @@ Create `.devcontainer/devcontainer.json` in your repository with this content:
 
 - **Base Image**: Debian-based development container
 - **Features**: Installs Rust, Docker-in-Docker, and Node.js
-- **Setup Scripts**: Automatically clones turbo-flow-claude repo and copies custom setup scripts
+- **Setup Scripts**: Automatically clones turbo-flow repo and runs the bootstrap script
 - **VS Code Extensions**: Installs Roo Cline, GitHub Copilot, and other productivity tools
 - **tmux Integration**: Sets up tmux workspace for persistent terminal sessions
 
@@ -183,9 +183,9 @@ devpod up https://github.com/yourusername/your-repo
 4. Installs Rust, Docker-in-Docker, and Node.js features
 5. Runs `postCreateCommand`:
    - Installs tmux and htop
-   - Clones turbo-flow-claude for setup scripts
+   - Clones turbo-flow for setup scripts
    - Copies `devpods/` folder to your workspace
-   - Runs `setup.sh` if it exists
+   - Runs `bootstrap.sh`
 6. Opens VS Code connected to the remote container
 
 ## Step 6: Quick Start Script (Optional)
@@ -207,7 +207,7 @@ cd "$REPO_PATH" || exit 1
 mkdir -p .devcontainer
 
 curl -o .devcontainer/devcontainer.json \
-  https://raw.githubusercontent.com/marcuspat/turbo-flow-claude/refs/heads/main/devpods/rackspace-devcontainer.json
+  https://raw.githubusercontent.com/adventurewavelabs/turbo-flow/refs/heads/main/devpods/rackspace-devcontainer.json
 
 echo "✅ DevContainer configuration added!"
 echo "Next steps:"
@@ -352,7 +352,7 @@ devpod up https://github.com/user/repo
 # Add devcontainer to repo
 mkdir -p .devcontainer
 curl -o .devcontainer/devcontainer.json \
-  https://raw.githubusercontent.com/marcuspat/turbo-flow-claude/refs/heads/main/devpods/rackspace-devcontainer.json
+  https://raw.githubusercontent.com/adventurewavelabs/turbo-flow/refs/heads/main/devpods/rackspace-devcontainer.json
 
 # Create workspace
 devpod up https://github.com/user/repo
@@ -387,7 +387,7 @@ devpod provider options rackspace-spot
 ✅ **Resource flexibility**: Scale CPU/RAM as needed  
 ✅ **Auto-cleanup**: Workspaces stop when inactive  
 ✅ **No local dependencies**: Keep your laptop fast and clean  
-✅ **Custom tooling**: Automatic setup scripts via turbo-flow-claude  
+✅ **Custom tooling**: Automatic setup via turbo-flow bootstrap  
 ✅ **tmux integration**: Persistent terminal sessions  
 
 ---
@@ -396,4 +396,4 @@ devpod provider options rackspace-spot
 - DevPod Docs: [devpod.sh/docs](https://devpod.sh/docs)
 - Rackspace Spot Docs: [spot.rackspace.com/docs](https://spot.rackspace.com/docs)
 - Rackspace Support: [support.rackspace.com](https://support.rackspace.com)
-- Reference DevContainer: [turbo-flow-claude/devpods](https://github.com/marcuspat/turbo-flow-claude/tree/main/devpods)
+- Reference DevContainer: [turbo-flow/devpods](https://github.com/adventurewavelabs/turbo-flow/tree/main/devpods)

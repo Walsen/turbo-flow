@@ -137,7 +137,7 @@ The workspace context file is completely new. It includes the three-tier memory 
 
 ### From v3.4.1
 
-1. Run `devpods/setup.sh` — it handles everything including cleanup of old aliases
+1. Run `bash devpods/bootstrap.sh` — it handles everything including cleanup of old aliases
 2. Your old `cf-*` commands become `rf-*`
 3. Slash commands (`/sparc`, etc.) are gone — Ruflo auto-activates skills based on your task
 4. Run `bd init` in your project repos to enable Beads memory
@@ -174,12 +174,14 @@ turbo-flow/
 ├── V3/                          ← archived v3.0-v3.4.1 (Claude Flow era)
 ├── .claude/                     ← skills, agents, settings
 ├── .devcontainer/
-│   ├── devcontainer.json
-│   ├── devpods/setup.sh       (771 lines, 10 steps)
-│   └── post-devpods/setup.sh  (488 lines, 13 checks)
+│   └── devcontainer.json
+├── devpods/
+│   ├── bootstrap.sh             (universal entry point)
+│   ├── Taskfile.yml             (idempotent setup tasks)
+│   ├── templates/               (aliases, statusline, CLAUDE.md template)
+│   └── context/                 ← devpod context files
 ├── scripts/
 │   └── generate-claude-md.sh
-├── devpods/context/            ← devpod context files
 ├── CLAUDE.md                    ← workspace context (active)
 └── README.md
 ```
