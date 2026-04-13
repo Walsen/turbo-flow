@@ -1,6 +1,8 @@
 # 🚀 Guías de Configuración de Turbo Flow
 ## Configuración para Múltiples Entornos
 
+> **⚠️ NOTA: Este documento contiene contenido heredado de TurboFlow v1.x (era Agentic-Flow/Claude-Flow).** Las secciones de configuración de entornos (Google Cloud Shell, Codespaces, macOS/Linux) han sido actualizadas para v4.0 y usan `bootstrap.sh`. Sin embargo, las secciones de comandos (`af-*`, `cf-*`), costos, modo privacidad y rendimiento hacen referencia a herramientas que ya no existen en v4.0. En v4.0 usa los comandos `rf-*` (Ruflo), `bd-*` (Beads), `gnx-*` (GitNexus). Consulta `docs/02-quick-reference.md` para la referencia actualizada.
+
 ---
 
 ## Tabla de Contenidos
