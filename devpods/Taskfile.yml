@@ -80,9 +80,42 @@ tasks:
       - task: ruflo
 
   verify:
-    desc: "Post-setup verification (runs post-setup.sh)"
+    desc: "Post-setup verification"
     cmds:
-      - bash post-setup.sh
+      - |
+        echo "╔══════════════════════════════════════════════════╗"
+        echo "║      🔍 TurboFlow 4.0 Post-Setup Verify         ║"
+        echo "╚══════════════════════════════════════════════════╝"
+        echo ""
+        PASS=0; ISSUES=0
+
+        check() {
+          if eval "$2" &>/dev/null; then
+            echo "  ✓ $1"; PASS=$((PASS+1))
+          else
+            echo "  ⚠ $1"; ISSUES=$((ISSUES+1))
+          fi
+        }
+
+        check "Node.js 20+"          "command -v node && test $(node -v | cut -d. -f1 | tr -d v) -ge 20"
+        check "Claude Code"           "command -v claude"
+        check "Ruflo"                 "npx ruflo@latest --version"
+        check "Dolt"                  "command -v dolt"
+        check "Beads (bd)"           "command -v bd"
+        check "GitNexus"             "command -v gitnexus || npx gitnexus --version"
+        check "jq"                   "command -v jq"
+        check "tmux"                 "command -v tmux"
+        check "CLAUDE.md"            "test -f {{.WORKSPACE}}/CLAUDE.md"
+        check "Aliases"              "test -f $HOME/.turboflow_aliases && grep -q rf-swarm $HOME/.turboflow_aliases"
+        check "Statusline"           "test -x $HOME/.claude/turbo-flow-statusline.sh"
+        check "PATH ~/.local/bin"    "echo $PATH | grep -q .local/bin"
+        check "PATH ~/.claude/bin"   "echo $PATH | grep -q .claude/bin"
+        check "PATH ~/.npm-global"   "echo $PATH | grep -q .npm-global"
+        check "Agent Teams env"      "test '${CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS:-}' = '1'"
+
+        echo ""
+        echo "  Results: $PASS passed / $ISSUES issues"
+        echo ""
 
   status:
     desc: "Quick health check"
@@ -419,26 +452,9 @@ tasks:
       - grep -q turbo-flow-statusline "$HOME/.claude/settings.json" 2>/dev/null
     cmds:
       - mkdir -p "$HOME/.claude"
-      - |
-        STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
-        if [ -f setup.sh ]; then
-          # Extract the statusline heredoc from setup.sh
-          sed -n "/^cat > .* << 'STATUSLINE_SCRIPT'/,/^STATUSLINE_SCRIPT$/p" setup.sh \
-            | tail -n +2 | head -n -1 > "$STATUSLINE_SCRIPT" 2>/dev/null || true
-        fi
-
-        # Fallback: minimal statusline if extraction failed
-        if [ ! -s "$STATUSLINE_SCRIPT" ]; then
-          cat > "$STATUSLINE_SCRIPT" << 'EOF'
-        #!/bin/bash
-        INPUT=$(cat)
-        MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "Claude"' 2>/dev/null)
-        COST=$(echo "$INPUT" | jq -r '.cost.total_cost_usd // 0' 2>/dev/null)
-        echo "[TF 4.0] $MODEL | \$$(printf '%.2f' $COST)"
-        EOF
-        fi
-        chmod +x "$STATUSLINE_SCRIPT"
-        echo "  ✓ Statusline script created"
+      - cp templates/statusline.sh "$HOME/.claude/turbo-flow-statusline.sh"
+      - chmod +x "$HOME/.claude/turbo-flow-statusline.sh"
+      - echo "  ✓ Statusline script installed"
       - |
         CLAUDE_SETTINGS="$HOME/.claude/settings.json"
         STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
@@ -467,16 +483,8 @@ tasks:
     cmds:
       - |
         DEVPODS="{{.WORKSPACE}}/devpods"
-        if [ -f "$DEVPODS/setup.sh" ]; then
-          sed -n "/^cat > .* << 'CLAUDEEOF'/,/^CLAUDEEOF$/p" "$DEVPODS/setup.sh" \
-            | tail -n +2 | head -n -1 > CLAUDE.md 2>/dev/null || true
-        fi
-
-        if [ -s CLAUDE.md ] && grep -q "TurboFlow 4.0" CLAUDE.md 2>/dev/null; then
-          echo "  ✓ CLAUDE.md generated"
-        else
-          echo "  ⚠ CLAUDE.md generation failed — will be created on first setup.sh run"
-        fi
+        cp "$DEVPODS/templates/CLAUDE.md.tpl" CLAUDE.md
+        echo "  ✓ CLAUDE.md generated"
 
   # ===========================================================================
   # Step 10: Aliases + environment
@@ -491,16 +499,8 @@ tasks:
       - |
         ALIAS_FILE="$HOME/.turboflow_aliases"
         DEVPODS="{{.WORKSPACE}}/devpods"
-        if [ -f "$DEVPODS/setup.sh" ]; then
-          sed -n "/^cat > .* << 'ALIASEOF'/,/^ALIASEOF$/p" "$DEVPODS/setup.sh" \
-            | tail -n +2 | head -n -1 > "$ALIAS_FILE" 2>/dev/null || true
-        fi
-
-        if [ -s "$ALIAS_FILE" ] && grep -q "rf-swarm" "$ALIAS_FILE" 2>/dev/null; then
-          echo "  ✓ Aliases written to $ALIAS_FILE"
-        else
-          echo "  ⚠ Alias extraction failed — run setup.sh for full aliases"
-        fi
+        cp "$DEVPODS/templates/turboflow_aliases.sh" "$ALIAS_FILE"
+        echo "  ✓ Aliases written to $ALIAS_FILE"
       - |
         ALIAS_FILE="$HOME/.turboflow_aliases"
         for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
