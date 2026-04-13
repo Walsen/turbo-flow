@@ -96,11 +96,42 @@ ALIASEOF
         echo "  ✓ Statusline installed"
     fi
 
-    # 6. API key check
-    if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-        echo "  ✓ ANTHROPIC_API_KEY is set"
+    # 6. Authentication check
+    if [ "${CLAUDE_CODE_USE_BEDROCK:-}" = "1" ]; then
+        echo "  ✓ Provider: Amazon Bedrock (region: ${AWS_REGION:-us-east-1})"
+        if aws sts get-caller-identity &>/dev/null 2>&1; then
+            echo "  ✓ AWS credentials valid"
+        elif [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
+            echo "  ✓ AWS access key set"
+        elif [ -n "${AWS_BEARER_TOKEN_BEDROCK:-}" ]; then
+            echo "  ✓ Bedrock API key set"
+        elif [ -n "${AWS_PROFILE:-}" ]; then
+            echo "  ✓ AWS profile: ${AWS_PROFILE}"
+        else
+            echo "  ⚠ CLAUDE_CODE_USE_BEDROCK=1 but no AWS credentials detected"
+            echo "    Pass via: -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=..."
+            echo "    Or use an ECS task role / EC2 instance profile"
+        fi
+
+        # Write Bedrock env for shell sessions
+        BEDROCK_ENV_FILE="$HOME/.turboflow_bedrock_env"
+        if [ ! -f "$BEDROCK_ENV_FILE" ]; then
+            cat > "$BEDROCK_ENV_FILE" << BEOF
+export CLAUDE_CODE_USE_BEDROCK=1
+export AWS_REGION=${AWS_REGION:-us-east-1}
+export ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-us.anthropic.claude-opus-4-6-v1}
+export ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-us.anthropic.claude-sonnet-4-6}
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-us.anthropic.claude-haiku-4-5-20251001-v1:0}
+BEOF
+            grep -q 'turboflow_bedrock_env' "$HOME/.bashrc" 2>/dev/null || \
+                echo '[ -f "$HOME/.turboflow_bedrock_env" ] && source "$HOME/.turboflow_bedrock_env"' >> "$HOME/.bashrc"
+        fi
+    elif [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+        echo "  ✓ Provider: Anthropic API (direct)"
     else
-        echo "  ⚠ ANTHROPIC_API_KEY not set — pass via: docker run -e ANTHROPIC_API_KEY=sk-..."
+        echo "  ⚠ No auth configured. Choose one:"
+        echo "    Bedrock:   -e CLAUDE_CODE_USE_BEDROCK=1 -e AWS_REGION=us-east-1"
+        echo "    Anthropic: -e ANTHROPIC_API_KEY=sk-ant-..."
     fi
 
     touch "$DONE_FLAG"

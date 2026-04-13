@@ -35,6 +35,11 @@ ENV NPM_CONFIG_PREFIX=/home/${USERNAME}/.npm-global \
     AGENTS_DIR=/workspace/agents \
     PATH="/home/${USERNAME}/.npm-global/bin:/home/${USERNAME}/.local/bin:/home/${USERNAME}/.claude/bin:${PATH}"
 
+# Bedrock env vars — set at runtime, not build time.
+# To use Bedrock, pass these when running the container:
+#   docker run -e CLAUDE_CODE_USE_BEDROCK=1 -e AWS_REGION=us-east-1 ...
+# Or use an ECS task role / EC2 instance profile for credentials.
+
 # =============================================================================
 # STEP 1: System Prerequisites
 # =============================================================================
