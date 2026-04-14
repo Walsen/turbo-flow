@@ -474,4 +474,4 @@ MIT — Copyright (c) 2025-2026 Adventure Wave Labs
 *Turbo Flow v4.0 — Ruflo v3.5. 215+ MCP tools. 6 plugins. Beads. GitNexus. Worktrees. One command.*
 
 </div>
-https://github.com/marcuspat/turbo-flow/blob/main/AWLabs.png
+https://github.com/adventurewavelabs/turbo-flow/blob/main/AWLabs.png

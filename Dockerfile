@@ -1,7 +1,7 @@
 # =============================================================================
 # TurboFlow 4.0 — Pre-baked Development Container
 #
-# Mirrors the 10-step setup from devpods/setup.sh but pre-bakes everything
+# Mirrors the 10-step setup from devpods/Taskfile.yml but pre-bakes everything
 # into the image so container startup is ~2 min instead of ~10 min.
 #
 # Base: Ubuntu 24.04 (matches .devcontainer/devcontainer.json)
