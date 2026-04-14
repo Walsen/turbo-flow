@@ -16,7 +16,7 @@
 #   docker compose exec turboflow bash
 # =============================================================================
 
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
+FROM ubuntu:24.04
 
 LABEL maintainer="Adventure Wave Labs"
 LABEL version="4.0.0"
@@ -24,6 +24,13 @@ LABEL description="TurboFlow 4.0 — Ruflo v3.5 + Beads + Worktrees + Agent Team
 
 ARG NODE_MAJOR=20
 ARG USERNAME=vscode
+
+# Create non-root user (replaces what the devcontainer base image provided)
+RUN groupadd --gid 1000 ${USERNAME} \
+    && useradd --uid 1000 --gid ${USERNAME} --shell /bin/bash --create-home ${USERNAME} \
+    && apt-get update && apt-get install -y sudo \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
+    && rm -rf /var/lib/apt/lists/*
 
 # ─── Environment ─────────────────────────────────────────────────────────────
 ENV NPM_CONFIG_PREFIX=/home/${USERNAME}/.npm-global \
@@ -155,9 +162,8 @@ RUN dolt config --global --add user.name "TurboFlow Agent" 2>/dev/null || true \
 # Copy devpods (includes Taskfile.yml, bootstrap.sh, devbox.json, scripts, context)
 COPY --chown=${USERNAME}:${USERNAME} devpods /workspace/devpods
 
-# Copy context files that agents need (bracket trick: no-fail if missing)
-COPY --chown=${USERNAME}:${USERNAME} .bead[s] /workspace/.beads/
-COPY --chown=${USERNAME}:${USERNAME} CLAUDE.m[d] /workspace/
+# Copy CLAUDE.md if present (use a separate build stage to avoid failure)
+COPY --chown=${USERNAME}:${USERNAME} CLAUDE.md /workspace/CLAUDE.md
 
 # =============================================================================
 # STEP 7: Workspace directories
