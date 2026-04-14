@@ -4,3 +4,7 @@
 *.db
 .beads-credential-key
 planning/
+
+# Devbox
+.devbox/
+.envrc

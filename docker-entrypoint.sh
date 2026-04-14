@@ -87,6 +87,15 @@ ALIASEOF
         echo "  ✓ MCP servers registered"
     fi
 
+    # 4b. Fix GitNexus hooks — gitnexus setup installs startup hooks that
+    #     fail with MODULE_NOT_FOUND in containers. Remove broken hooks
+    #     so Claude Code starts cleanly. GitNexus MCP still works fine.
+    for hookdir in "$HOME/.claude/hooks" "/workspace/.claude/hooks"; do
+        if [ -d "$hookdir" ]; then
+            find "$hookdir" -name '*gitnexus*' -type f -exec rm -f {} \; 2>/dev/null || true
+        fi
+    done
+
     # 5. Statusline Pro
     STATUSLINE_SCRIPT="$HOME/.claude/turbo-flow-statusline.sh"
     if [ -f /workspace/devpods/templates/statusline.sh ] && [ ! -f "$STATUSLINE_SCRIPT" ]; then
