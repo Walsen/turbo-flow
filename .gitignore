@@ -3,3 +3,9 @@
 .dolt/
 *.db
 .beads-credential-key
+planning/
+
+# Devbox
+.devbox/
+.envrc
+.env

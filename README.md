@@ -68,46 +68,63 @@
 
 ## Architecture
 
-```
-+------------------------------------------------------------------+
-|              TURBO FLOW v4.0 — Adventure Wave Labs                |
-+------------------------------------------------------------------+
-|  INTERFACE                                                        |
-|  +---------------+  +---------------+  +---------------+          |
-|  | Claude Code   |  |  Open WebUI   |  |  Statusline   |          |
-|  |     CLI       |  |  (4 instances)|  |   Pro v4.0    |          |
-|  +---------------+  +---------------+  +---------------+          |
-+------------------------------------------------------------------+
-|  ORCHESTRATION: Ruflo v3.5                                        |
-|  60+ Agents | 215+ MCP Tools | Auto-activated Skills              |
-|  AgentDB v3 | RuVector WASM | SONA | 3-Tier Model Routing        |
-|  59 MCP Browser Tools | Observability | Gating                    |
-+------------------------------------------------------------------+
-|  PLUGINS (6)                                                      |
-|  +--------------------------------------------------------------+ |
-|  | Agentic QE | Code Intel | Test Intel | Perf | Teammate | Gas | |
-|  +--------------------------------------------------------------+ |
-+------------------------------------------------------------------+
-|  CODEBASE INTELLIGENCE: GitNexus                                  |
-|  Knowledge Graph | Blast Radius Detection | MCP Server            |
-+------------------------------------------------------------------+
-|  MEMORY (Three-Tier)                                              |
-|  +---------------+  +---------------+  +---------------+          |
-|  |    Beads      |  | Native Tasks  |  |   AgentDB     |          |
-|  |  project/git  |  |   session     |  |  + RuVector   |          |
-|  |    JSONL      |  |  ~/.claude/   |  |  WASM accel   |          |
-|  +---------------+  +---------------+  +---------------+          |
-+------------------------------------------------------------------+
-|  ISOLATION                                                        |
-|  Git Worktrees per Agent | PG Vector Schema per Worktree          |
-|  Auto GitNexus Indexing | Agent Teams (experimental)              |
-+------------------------------------------------------------------+
-|  SKILLS                                                           |
-|  UI UX Pro Max | OpenSpec | 36+ Ruflo Auto-activated Skills       |
-+------------------------------------------------------------------+
-|  INFRASTRUCTURE                                                   |
-|  DevPod | Codespaces | Rackspace Spot                            |
-+------------------------------------------------------------------+
+```mermaid
+block-beta
+    columns 1
+
+    block:INTERFACE["INTERFACE"]
+        columns 3
+        CLI["Claude Code CLI"]
+        WebUI["Open WebUI (4 instances)"]
+        Status["Statusline Pro v4.0"]
+    end
+
+    block:ORCH["ORCHESTRATION — Ruflo v3.5"]
+        columns 1
+        O1["60+ Agents | 215+ MCP Tools | Auto-activated Skills"]
+        O2["AgentDB v3 | RuVector WASM | SONA | 3-Tier Model Routing"]
+        O3["59 MCP Browser Tools | Observability | Gating"]
+    end
+
+    block:PLUGINS["PLUGINS (6)"]
+        columns 6
+        P1["Agentic QE"]
+        P2["Code Intel"]
+        P3["Test Intel"]
+        P4["Perf"]
+        P5["Teammate"]
+        P6["Gastown"]
+    end
+
+    block:INTEL["CODEBASE INTELLIGENCE — GitNexus"]
+        columns 1
+        I1["Knowledge Graph | Blast Radius Detection | MCP Server"]
+    end
+
+    block:MEMORY["MEMORY (Three-Tier)"]
+        columns 3
+        M1["Beads\nproject/git JSONL"]
+        M2["Native Tasks\nsession ~/.claude/"]
+        M3["AgentDB\n+ RuVector WASM"]
+    end
+
+    block:ISO["ISOLATION"]
+        columns 1
+        IS1["Git Worktrees per Agent | PG Vector Schema per Worktree"]
+        IS2["Auto GitNexus Indexing | Agent Teams (experimental)"]
+    end
+
+    block:SKILLS["SKILLS"]
+        columns 1
+        SK1["UI UX Pro Max | OpenSpec | 36+ Ruflo Auto-activated Skills"]
+    end
+
+    block:INFRA["INFRASTRUCTURE"]
+        columns 3
+        INF1["DevPod"]
+        INF2["Codespaces"]
+        INF3["Rackspace Spot"]
+    end
 ```
 
 ---
@@ -150,11 +167,10 @@ devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
 # Codespaces
 # Push to GitHub → Open in Codespace → runs automatically
 
-# Manual
+# Manual (via bootstrap — installs Task runner, then runs all setup steps)
 git clone https://github.com/adventurewavelabs/turbo-flow -b main
 cd turbo-flow
-chmod +x devpods/setup.sh
-./devpods/setup.sh
+bash devpods/bootstrap.sh
 source ~/.bashrc
 turbo-status
 ```
@@ -163,7 +179,7 @@ turbo-status
 
 ## What Gets Installed
 
-The `devpods/setup.sh` script installs the complete stack in **10 automated steps**:
+The `devpods/Taskfile.yml` (invoked via `bootstrap.sh`) installs the complete stack in **10 idempotent steps**:
 
 ### Step 1: System Prerequisites
 
@@ -384,14 +400,19 @@ gnx-wiki             # Generate repo wiki from graph
 
 ```
 turbo-flow/
-├── V3/                          ← archived v3.0-v3.4.1 (Claude Flow era)
-├── .claude/                     ← skills, agents, settings
+├── .devcontainer/               ← devcontainer config
 ├── devpods/
-│   ├── setup.sh                 ← main setup script
-│   ├── post-setup.sh            ← post-setup verification
-│   └── context/                 ← devpod context files
-├── scripts/
-│   └── generate-claude-md.sh
+│   ├── bootstrap.sh             ← universal entry point
+│   ├── Taskfile.yml             ← idempotent setup tasks (replaces setup.sh)
+│   ├── devbox.json              ← optional Nix-based env
+│   ├── tmux-workspace.sh        ← tmux 4-pane layout
+│   ├── templates/               ← CLAUDE.md, aliases, statusline
+│   ├── context/                 ← agent context files
+│   └── scripts/                 ← K8s utilities
+├── docs/                        ← numbered documentation (01-12)
+│   └── es/                      ← Spanish translations (13-16)
+├── Dockerfile                   ← pre-baked container image
+├── docker-compose.yml           ← local Docker usage
 ├── CLAUDE.md                    ← workspace context (active)
 └── README.md
 ```
@@ -410,8 +431,8 @@ turbo-status
 # 3. Get help
 turbo-help
 
-# 4. Run post-setup verification (13 checks)
-# ./devpods/post-setup.sh
+# 4. Run post-setup verification
+# task verify  (from devpods/)
 ```
 
 ---
@@ -453,4 +474,4 @@ MIT — Copyright (c) 2025-2026 Adventure Wave Labs
 *Turbo Flow v4.0 — Ruflo v3.5. 215+ MCP tools. 6 plugins. Beads. GitNexus. Worktrees. One command.*
 
 </div>
-https://github.com/marcuspat/turbo-flow/blob/main/AWLabs.png
+https://github.com/adventurewavelabs/turbo-flow/blob/main/AWLabs.png

@@ -1,0 +1,76 @@
+# =============================================================================
+# TurboFlow 4.0 — Docker Compose
+#
+# Usage:
+#   docker compose up -d
+#   docker compose exec turboflow bash
+#
+# With Anthropic API key:
+#   ANTHROPIC_API_KEY=sk-... docker compose up -d
+#
+# With AWS Bedrock (no Anthropic key needed):
+#   CLAUDE_CODE_USE_BEDROCK=1 AWS_REGION=us-east-1 docker compose up -d
+#
+# Or create a .env file:
+#   echo "CLAUDE_CODE_USE_BEDROCK=1" > .env
+#   echo "AWS_REGION=us-east-1" >> .env
+#   docker compose up -d
+# =============================================================================
+
+services:
+  turboflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: turboflow-4.0
+    hostname: turboflow
+    stdin_open: true    # -i
+    tty: true           # -t
+    environment:
+      # Authentication — choose ONE:
+      # Option A: Direct Anthropic API
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Option B: AWS Bedrock (set CLAUDE_CODE_USE_BEDROCK=1 in .env)
+      - CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - AWS_PROFILE=${AWS_PROFILE:-}
+      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK:-}
+      # Model pins (Bedrock cross-region inference profiles)
+      - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
+      - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
+      - ANTHROPIC_DEFAULT_HAIKU_MODEL=${ANTHROPIC_DEFAULT_HAIKU_MODEL:-}
+      # Common
+      - CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+      - WORKSPACE=/workspace
+      - WORKSPACE_FOLDER=/workspace
+    volumes:
+      # Mount your project code here
+      - ./:/workspace
+
+      # Persist Claude Code auth and settings across restarts
+      - claude-config:/home/vscode/.claude
+
+      # Persist npm global installs across rebuilds
+      - npm-global:/home/vscode/.npm-global
+
+      # Persist Dolt data (Beads backend)
+      - dolt-data:/home/vscode/.dolt
+
+      # Persist git config (optional — mount your host .gitconfig)
+      # - ~/.gitconfig:/home/vscode/.gitconfig:ro
+
+      # Mount AWS credentials for Bedrock (SSO session, config, etc.)
+      - ~/.aws:/home/vscode/.aws:ro
+    ports:
+      - "3000:3000"   # Dev server
+      - "8080:8080"   # GitNexus web UI
+    mem_limit: 8g
+    restart: unless-stopped
+
+volumes:
+  claude-config:
+  npm-global:
+  dolt-data:

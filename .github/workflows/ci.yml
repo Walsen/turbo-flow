@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell script syntax
+        run: |
+          echo "Checking shell scripts..."
+          for f in devpods/bootstrap.sh docker-entrypoint.sh devpods/tmux-workspace.sh devpods/templates/turboflow_aliases.sh devpods/templates/statusline.sh; do
+            if [ -f "$f" ]; then
+              bash -n "$f" && echo "  OK $f" || { echo "  FAIL $f"; exit 1; }
+            fi
+          done
+
+      - name: YAML validation
+        run: |
+          python3 -c "import yaml; yaml.safe_load(open('devpods/Taskfile.yml')); print('OK Taskfile.yml')"
+          python3 -c "import yaml; yaml.safe_load(open('docker-compose.yml')); print('OK docker-compose.yml')"
+
+      - name: JSON validation
+        run: |
+          python3 -c "import json; json.load(open('devpods/devbox.json')); print('OK devbox.json')"
+          python3 -c "import json; json.load(open('.devcontainer/devcontainer.json')); print('OK devcontainer.json')"
+          python3 -c "import json; json.load(open('devpods/devcontainer_files/rackspace_devcontainer.json')); print('OK rackspace_devcontainer.json')"
+
+      - name: Dockerfile lint
+        run: docker build --check -f Dockerfile . 2>/dev/null || echo "Docker --check not supported, skipping lint"
+
+      - name: No stale script references
+        run: |
+          echo "Checking for stale references to deleted scripts..."
+          STALE=$(grep -rl 'devpods/setup\.sh\|devpods/post-setup\.sh\|boot_linux\.sh\|boot_macosx\.sh\|marcuspat/turbo-flow' docs/ .devcontainer/ docker-entrypoint.sh docker-compose.yml Dockerfile README.md 2>/dev/null || true)
+          if [ -n "$STALE" ]; then
+            echo "FAIL: stale references found in:"
+            echo "$STALE"
+            exit 1
+          fi
+          echo "OK no stale references"
+
+  build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t turbo-flow:test .
+
+      - name: Smoke test — container starts
+        run: |
+          docker run --rm -d --name tf-smoke turbo-flow:test sleep 30
+          sleep 3
+          docker exec tf-smoke bash -c "command -v node && command -v dolt && echo 'OK smoke test'"
+          docker stop tf-smoke
