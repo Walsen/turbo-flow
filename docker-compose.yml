@@ -62,8 +62,8 @@ services:
       # Persist git config (optional — mount your host .gitconfig)
       # - ~/.gitconfig:/home/vscode/.gitconfig:ro
 
-      # Mount AWS credentials for Bedrock (optional — or use env vars)
-      # - ~/.aws:/home/vscode/.aws:ro
+      # Mount AWS credentials for Bedrock (SSO session, config, etc.)
+      - ~/.aws:/home/vscode/.aws:ro
     ports:
       - "3000:3000"   # Dev server
       - "8080:8080"   # GitNexus web UI

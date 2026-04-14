@@ -8,3 +8,4 @@ planning/
 # Devbox
 .devbox/
 .envrc
+.env
