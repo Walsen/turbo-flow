@@ -9,7 +9,8 @@
     "jq",
     "tmux",
     "htop",
-    "go-task"
+    "go-task",
+    "devpod@latest"
   ],
   "shell": {
     "init_hook": [
@@ -20,11 +21,11 @@
       "echo '   Run: task setup'"
     ],
     "scripts": {
-      "setup": "task setup",
-      "quick": "task setup:quick",
+      "setup":  "task setup",
+      "quick":  "task setup:quick",
       "verify": "task verify",
       "status": "task status",
-      "tmux": "task tmux"
+      "tmux":   "task tmux"
     }
   }
 }

@@ -5,6 +5,54 @@
       "resolved": "github:NixOS/nixpkgs/13043924aaa7375ce482ebe2494338e058282925?narHash=sha256-nwASzrRDD1JBEu%2Fo8ekKYEXm%2FoJW6EMCzCRdrwcLe90%3D#curl",
       "source": "nixpkg"
     },
+    "devpod@latest": {
+      "last_modified": "2026-03-21T07:29:51Z",
+      "resolved": "github:NixOS/nixpkgs/09061f748ee21f68a089cd5d91ec1859cd93d0be#devpod",
+      "source": "devbox-search",
+      "version": "0.6.15",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/bbpmi3g8jgr4ccxfh5s1hp5yb6rgfh4m-devpod-0.6.15",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/bbpmi3g8jgr4ccxfh5s1hp5yb6rgfh4m-devpod-0.6.15"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/5xfyf5zd202ga3ww6n67h9x75gk54lwd-devpod-0.6.15",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/5xfyf5zd202ga3ww6n67h9x75gk54lwd-devpod-0.6.15"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/3mkcqkvpd51z1h5fgf5hfn0jz18mrf9h-devpod-0.6.15",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/3mkcqkvpd51z1h5fgf5hfn0jz18mrf9h-devpod-0.6.15"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/igw2kgjzkrbdnh8a5z3n35g0hw0f4ywb-devpod-0.6.15",
+              "default": true
+            }
+          ],
+          "store_path": "/nix/store/igw2kgjzkrbdnh8a5z3n35g0hw0f4ywb-devpod-0.6.15"
+        }
+      }
+    },
     "gcc": {
       "resolved": "github:NixOS/nixpkgs/13043924aaa7375ce482ebe2494338e058282925?narHash=sha256-nwASzrRDD1JBEu%2Fo8ekKYEXm%2FoJW6EMCzCRdrwcLe90%3D#gcc",
       "source": "nixpkg"
