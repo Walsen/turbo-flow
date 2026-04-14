@@ -26,8 +26,9 @@ ARG NODE_MAJOR=20
 ARG USERNAME=vscode
 
 # Create non-root user (replaces what the devcontainer base image provided)
-RUN groupadd --gid 1000 ${USERNAME} \
-    && useradd --uid 1000 --gid ${USERNAME} --shell /bin/bash --create-home ${USERNAME} \
+RUN groupadd --gid 1000 ${USERNAME} 2>/dev/null || true \
+    && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home ${USERNAME} 2>/dev/null \
+       || usermod -l ${USERNAME} -d /home/${USERNAME} -m $(getent passwd 1000 | cut -d: -f1) 2>/dev/null || true \
     && apt-get update && apt-get install -y sudo \
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && rm -rf /var/lib/apt/lists/*
