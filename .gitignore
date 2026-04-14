@@ -3,7 +3,6 @@
 .dolt/
 *.db
 .beads-credential-key
-planning/
 
 # Devbox
 .devbox/
