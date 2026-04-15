@@ -161,6 +161,34 @@ Audit the payment processing module:
 
 ## Architecture & Design
 
+### Build an entire application (design → code → QE)
+
+One line — the supervisor coordinates architect, coder, tester, reviewer, and security architect across three phases.
+
+```python
+from turboflow_adapter.strands import create_team
+
+team = create_team("full-build")
+result = team("""
+Build a task management API:
+- CRUD for projects and tasks
+- User assignment and due dates
+- Status workflow (todo → in_progress → review → done)
+- REST API with OpenAPI spec
+- PostgreSQL with Prisma ORM
+- TypeScript / Express
+- JWT authentication
+""")
+```
+
+The supervisor runs:
+1. **Design** — architect produces component diagram, DB schema, API contract, file structure
+2. **Build** — coder implements the design, tester writes unit + integration tests
+3. **QE gate** — reviewer checks code quality, security architect audits for OWASP Top 10
+4. **Report** — synthesized summary with findings by severity and remaining work
+
+All decisions and findings are recorded in Beads automatically.
+
 ### Design a system
 
 ```python
