@@ -1,0 +1,32 @@
+{
+  "name": "@turboflow/agent-adapter",
+  "version": "0.1.0",
+  "description": "Agent Adapter Interface — provider-independent agent CLI abstraction for TurboFlow",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "tf-adapter": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["turboflow", "agent", "adapter", "claude", "aider", "openhands"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.6.0"
+  }
+}

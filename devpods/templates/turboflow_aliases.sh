@@ -113,6 +113,14 @@ alias neural-patterns='npx ruflo@latest neural patterns'
 # --- Usage monitoring ---
 alias claude-usage='claude usage 2>/dev/null || echo "Run inside claude session"'
 
+# --- Agent Adapter (Path B — provider independence) ---
+# Source the shell integration if available (adds agent-* commands)
+if [ -f "${WORKSPACE:-$(pwd)}/agent-adapter/shell-integration.sh" ]; then
+    source "${WORKSPACE:-$(pwd)}/agent-adapter/shell-integration.sh"
+elif [ -f "$(dirname "${BASH_SOURCE[0]:-}")/../agent-adapter/shell-integration.sh" ]; then
+    source "$(dirname "${BASH_SOURCE[0]:-}")/../agent-adapter/shell-integration.sh"
+fi
+
 # --- TurboFlow Meta ---
 turbo-status() {
     echo "╔══════════════════════════════════════════╗"
@@ -141,6 +149,13 @@ turbo-status() {
     echo "Codebase Intelligence:"
     command -v gitnexus &>/dev/null && echo "  ✓ GitNexus" || echo "  ○ GitNexus (via npx)"
     echo ""
+    echo "Agent Adapter:"
+    if type agent-status &>/dev/null 2>&1; then
+        echo "  ✓ Loaded (backend: ${TURBOFLOW_AGENT_BACKEND:-claude})"
+    else
+        echo "  ○ Not loaded (source agent-adapter/adapter.sh)"
+    fi
+    echo ""
     echo "Workspace:"
     [ -f "CLAUDE.md" ] && echo "  ✓ CLAUDE.md" || echo "  ✗ CLAUDE.md"
     git worktree list 2>/dev/null | head -5
@@ -150,6 +165,7 @@ turbo-help() {
     echo "TurboFlow 4.0 — Quick Reference"
     echo ""
     echo "Orchestration:  rf-wizard | rf-swarm | rf-spawn coder | rf-doctor | rf-plugins"
+    echo "Agent Adapter:  agent-status | agent-switch aider | agent-exec 'prompt' | agent-health"
     echo "Memory:         bd-ready | bd-add 'title' bug 1 'desc' | ruv-remember K V | mem-search Q"
     echo "Isolation:      wt-add agent-1 | wt-remove agent-1 | wt-list"
     echo "Quality:        aqe-generate | aqe-gate | os-init | os"

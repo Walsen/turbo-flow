@@ -22,3 +22,58 @@ if command -v bd >/dev/null 2>&1; then
   if [ $_bd_exit -ne 0 ]; then exit $_bd_exit; fi
 fi
 # --- END BEADS INTEGRATION v0.62.0 ---
+
+# --- BEGIN TURBOFLOW ADAPTER CHECKS ---
+# Lint and type-check staged Python files in agent-adapter/
+
+# Check if any adapter Python files are staged
+STAGED_PY=$(git diff --cached --name-only --diff-filter=ACM | grep '^agent-adapter/python/' | grep '\.py$' || true)
+
+if [ -n "$STAGED_PY" ]; then
+  echo "🔍 Checking agent-adapter Python files..."
+
+  ADAPTER_DIR="$(git rev-parse --show-toplevel)/agent-adapter/python"
+
+  # Ruff lint
+  if command -v uv >/dev/null 2>&1 && [ -f "$ADAPTER_DIR/pyproject.toml" ]; then
+    # Ensure deps are installed (fast no-op if already synced)
+    (cd "$ADAPTER_DIR" && uv sync --extra dev --quiet 2>/dev/null)
+
+    (cd "$ADAPTER_DIR" && uv run ruff check turboflow_adapter/ tests/ 2>&1) || {
+      echo >&2 "❌ Ruff lint failed. Fix issues before committing."
+      exit 1
+    }
+
+    # Ruff format check
+    (cd "$ADAPTER_DIR" && uv run ruff format --check turboflow_adapter/ tests/ 2>&1) || {
+      echo >&2 "❌ Ruff format check failed. Run: cd agent-adapter/python && uv run ruff format turboflow_adapter/ tests/"
+      exit 1
+    }
+
+    # Mypy type check
+    (cd "$ADAPTER_DIR" && uv run mypy turboflow_adapter/ --ignore-missing-imports 2>&1) || {
+      echo >&2 "❌ Mypy type check failed. Fix type errors before committing."
+      exit 1
+    }
+
+    echo "  ✓ Python lint + format + types OK"
+  fi
+fi
+
+# Check if any adapter TypeScript files are staged
+STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep '^agent-adapter/ts/' | grep '\.ts$' || true)
+
+if [ -n "$STAGED_TS" ]; then
+  echo "🔍 Checking agent-adapter TypeScript files..."
+
+  TS_DIR="$(git rev-parse --show-toplevel)/agent-adapter/ts"
+
+  if [ -f "$TS_DIR/tsconfig.json" ] && command -v npx >/dev/null 2>&1; then
+    (cd "$TS_DIR" && npx tsc --noEmit 2>&1) || {
+      echo >&2 "❌ TypeScript type check failed. Fix errors before committing."
+      exit 1
+    }
+    echo "  ✓ TypeScript types OK"
+  fi
+fi
+# --- END TURBOFLOW ADAPTER CHECKS ---

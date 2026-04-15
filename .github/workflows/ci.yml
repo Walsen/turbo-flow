@@ -8,7 +8,7 @@ on:
 
 jobs:
   validate:
-    name: Validate
+    name: Validate Shell / YAML / JSON
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +16,7 @@ jobs:
       - name: Shell script syntax
         run: |
           echo "Checking shell scripts..."
-          for f in devpods/bootstrap.sh docker-entrypoint.sh devpods/tmux-workspace.sh devpods/templates/turboflow_aliases.sh devpods/templates/statusline.sh; do
+          for f in devpods/bootstrap.sh docker-entrypoint.sh devpods/tmux-workspace.sh devpods/templates/turboflow_aliases.sh devpods/templates/statusline.sh agent-adapter/shell-integration.sh; do
             if [ -f "$f" ]; then
               bash -n "$f" && echo "  OK $f" || { echo "  FAIL $f"; exit 1; }
             fi
@@ -47,10 +47,65 @@ jobs:
           fi
           echo "OK no stale references"
 
-  build:
+  python-adapter:
+    name: Python Adapter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-adapter/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra strands --extra dev
+
+      - name: Lint (ruff check)
+        run: uv run ruff check turboflow_adapter/ tests/
+
+      - name: Format (ruff format)
+        run: uv run ruff format --check turboflow_adapter/ tests/
+
+      - name: Type check (mypy)
+        run: uv run mypy turboflow_adapter/ --ignore-missing-imports
+
+      - name: Unit tests
+        run: uv run pytest tests/ -v --ignore=tests/test_integration.py
+
+  typescript-adapter:
+    name: TypeScript Adapter
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent-adapter/ts
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+  docker-build:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: validate
+    needs: [validate, python-adapter, typescript-adapter]
     if: github.ref != 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -64,3 +119,32 @@ jobs:
           sleep 3
           docker exec tf-smoke bash -c "command -v node && command -v dolt && echo 'OK smoke test'"
           docker stop tf-smoke
+
+  integration-tests:
+    name: Integration Tests (Bedrock)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    needs: [python-adapter]
+    defaults:
+      run:
+        working-directory: agent-adapter/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --extra strands --extra dev
+
+      - name: Run integration tests
+        env:
+          CLAUDE_CODE_USE_BEDROCK: "1"
+          AWS_REGION: us-east-1
+          TURBOFLOW_INTEGRATION_TESTS: "1"
+        run: uv run pytest tests/test_integration.py -v

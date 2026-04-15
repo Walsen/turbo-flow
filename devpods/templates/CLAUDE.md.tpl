@@ -72,3 +72,14 @@ Isolation: Git worktrees per parallel agent.
 - Hard session cap: $15/hr (configurable)
 - Use Haiku for simple tasks — don't burn Opus on formatting
 - Monitor: `claude-usage` or ruflo statusline
+
+## Agent Adapter (Provider Independence)
+- TurboFlow supports multiple agent backends via the Agent Adapter Interface
+- Active backend: `$TURBOFLOW_AGENT_BACKEND` (default: claude)
+- Switch at runtime: `agent-switch aider` or `agent-switch openhands`
+- Check status: `agent-status`
+- The adapter sits between Ruflo and the agent CLI — Ruflo still orchestrates
+- Not all backends support all features (check `agent-capabilities`)
+- Claude Code: full feature support (MCP, Agent Teams, Bedrock)
+- Aider: multi-model support (OpenAI, Anthropic, Bedrock, local models)
+- OpenHands: OSS, Docker-based, multi-model

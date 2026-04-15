@@ -75,12 +75,22 @@ ALIASEOF
     # Source aliases for this session
     source "$ALIAS_FILE" 2>/dev/null || true
 
+    # 3b. Source agent adapter if available
+    if [ -f /workspace/agent-adapter/shell-integration.sh ]; then
+        source /workspace/agent-adapter/shell-integration.sh 2>/dev/null || true
+        echo "  ✓ Agent adapter loaded (backend: ${TURBOFLOW_AGENT_BACKEND:-claude})"
+    fi
+
     # Ensure .bashrc sources aliases
     grep -q 'turboflow_aliases' "$HOME/.bashrc" 2>/dev/null || \
         echo '[ -f "$HOME/.turboflow_aliases" ] && source "$HOME/.turboflow_aliases"' >> "$HOME/.bashrc"
 
-    # 4. MCP registration (needs claude to be available)
-    if command -v claude &>/dev/null; then
+    # 4. MCP registration (uses adapter if available, falls back to direct claude)
+    if type agent-mcp-add &>/dev/null 2>&1; then
+        agent-mcp-add ruflo "npx" "-y" "ruflo@latest" 2>/dev/null || true
+        agent-mcp-add gitnexus "npx" "-y" "gitnexus" "mcp" 2>/dev/null || true
+        echo "  ✓ MCP servers registered (via adapter)"
+    elif command -v claude &>/dev/null; then
         claude mcp add ruflo -- npx -y ruflo@latest 2>/dev/null || true
         npx gitnexus setup 2>/dev/null || \
             claude mcp add gitnexus -- npx -y gitnexus mcp 2>/dev/null || true
