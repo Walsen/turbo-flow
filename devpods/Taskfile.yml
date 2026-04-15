@@ -638,6 +638,44 @@ tasks:
         fi
 
   # ===========================================================================
+  # Agent Adapter — install alternative backends (Path B)
+  # ===========================================================================
+
+  agent-backend:
+    desc: "Install and configure an agent backend (claude|aider|openhands)"
+    cmds:
+      - |
+        BACKEND="${TURBOFLOW_AGENT_BACKEND:-claude}"
+        ADAPTER_SCRIPT="{{.WORKSPACE}}/agent-adapter/adapter.sh"
+
+        if [ ! -f "$ADAPTER_SCRIPT" ]; then
+          echo "  ✗ Agent adapter not found at $ADAPTER_SCRIPT"
+          exit 1
+        fi
+
+        source "$ADAPTER_SCRIPT"
+        echo "  Installing backend: $BACKEND"
+        agent-install
+        echo ""
+        agent-health
+
+  agent-backend:aider:
+    desc: "Install Aider backend"
+    cmds:
+      - |
+        TURBOFLOW_AGENT_BACKEND=aider
+        source "{{.WORKSPACE}}/agent-adapter/adapter.sh"
+        agent-install
+
+  agent-backend:openhands:
+    desc: "Install OpenHands backend"
+    cmds:
+      - |
+        TURBOFLOW_AGENT_BACKEND=openhands
+        source "{{.WORKSPACE}}/agent-adapter/adapter.sh"
+        agent-install
+
+  # ===========================================================================
   # Utility tasks
   # ===========================================================================
 

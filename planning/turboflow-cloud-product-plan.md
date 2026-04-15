@@ -276,36 +276,43 @@ The key lever is model routing. Ruflo's 3-tier routing already saves ~40% by usi
 
 ```mermaid
 gantt
-    title TurboFlow Cloud — Build Roadmap
+    title TurboFlow Cloud — Build Roadmap (Revised)
     dateFormat YYYY-MM-DD
     axisFormat %b %Y
 
-    section Phase 1 — Bedrock
+    section Phase 1 — Bedrock Integration
     Bedrock env vars + Dockerfile        :p1a, 2026-04-14, 5d
     Test Claude Code with Bedrock        :p1b, after p1a, 3d
     Ruflo model routing verification     :p1c, after p1b, 3d
     Entrypoint + Taskfile updates        :p1d, after p1c, 2d
     Documentation                        :p1e, after p1d, 2d
 
-    section Phase 2 — Tenant Isolation
-    ECS task def + IAM roles             :p2a, after p1e, 7d
-    EFS + Secrets Manager                :p2b, after p2a, 5d
-    Cost allocation tags + CloudWatch    :p2c, after p2b, 5d
-    Terraform/CDK module                 :p2d, after p2c, 5d
+    section Phase 2 — Agent Adapter + Provider Independence
+    Agent Adapter Interface (TS)         :p2a, after p1e, 5d
+    Strands Agents backend               :p2b, after p2a, 7d
+    Strands multi-agent patterns         :p2c, after p2b, 7d
+    OTEL observability integration       :p2d, after p2c, 5d
+    Evaluate Strands as Ruflo replacement:p2e, after p2d, 5d
 
-    section Phase 3 — Control Plane
-    Tenant CRUD API                      :p3a, after p2d, 10d
-    IAM automation + metering            :p3b, after p3a, 10d
-    Billing (Stripe / Marketplace)       :p3c, after p3b, 10d
+    section Phase 3 — Tenant Isolation (AWS Infra)
+    ECS task def + IAM roles             :p3a, after p2e, 7d
+    EFS + Secrets Manager                :p3b, after p3a, 5d
+    Cost allocation tags + CloudWatch    :p3c, after p3b, 5d
+    Terraform/CDK module                 :p3d, after p3c, 5d
 
-    section Phase 4 — Dashboard
-    Tenant management UI                 :p4a, after p3c, 10d
-    Usage dashboards + agent monitor     :p4b, after p4a, 10d
-    Repo connection + web terminal       :p4c, after p4b, 10d
+    section Phase 4 — Control Plane
+    Tenant CRUD API                      :p4a, after p3d, 10d
+    IAM automation + metering            :p4b, after p4a, 10d
+    Billing (Stripe / Marketplace)       :p4c, after p4b, 10d
 
-    section Phase 5 — Enterprise
-    SSO + audit logs                     :p5a, after p4c, 14d
-    Dedicated throughput + SLA           :p5b, after p5a, 14d
+    section Phase 5 — Dashboard
+    Tenant management UI                 :p5a, after p4c, 10d
+    Usage dashboards + agent monitor     :p5b, after p5a, 10d
+    Repo connection + web terminal       :p5c, after p5b, 10d
+
+    section Phase 6 — Enterprise
+    SSO + audit logs                     :p6a, after p5c, 14d
+    Dedicated throughput + SLA           :p6b, after p6a, 14d
 ```
 
 ### Phase 1: Bedrock integration (2-3 weeks)
@@ -317,7 +324,61 @@ gantt
 - [ ] Add `task setup:bedrock` variant to Taskfile
 - [ ] Document Bedrock setup in docs/
 
-### Phase 2: Tenant isolation (3-4 weeks)
+### Phase 2: Agent Adapter + Provider Independence (4-5 weeks) — PRIORITY
+
+This phase reduces vendor risk and builds the foundation for all future work. The agent layer must be provider-independent before investing in infrastructure.
+
+- [x] Agent Adapter Interface — TypeScript, Strategy + Factory + Registry patterns (`agent-adapter/ts/`)
+- [x] Claude Code backend (CLI wrapper) — TypeScript + Python
+- [x] Aider backend (CLI wrapper, multi-model) — TypeScript + Python
+- [x] OpenHands backend (CLI/Docker wrapper) — TypeScript + Python
+- [x] Shell integration (`shell-integration.sh`) + CLI (`tf-adapter`) — auto-detects Python or TypeScript
+- [x] Taskfile, entrypoint, and aliases integration
+- [x] **Python adapter** — parallel implementation with native Strands support (`agent-adapter/python/`)
+- [x] **Strands Agents backend (Python)** — programmatic, native Bedrock, full SDK (Strands 1.35.0)
+- [x] **TurboFlow Strands value layer** (`turboflow_adapter/strands/`):
+  - [x] 7 pre-configured agent types with tuned prompts and default model tiers (coder, tester, reviewer, architect, researcher, coordinator, security)
+  - [x] Automatic model tier selection based on task complexity (replaces Ruflo 3-tier routing)
+  - [x] 8 TurboFlow-specific Strands tools (4 Beads + 4 file ops) — agents auto-check memory and track work
+  - [x] 4 multi-agent team recipes using supervisor-agent pattern (feature, bug-fix, code-review, security-audit) — replaces `rf-swarm`
+- [ ] Strands Agents backend (TypeScript) — programmatic, native Bedrock, TypeScript SDK
+- [ ] Strands + GitNexus integration — codebase intelligence as MCP tool for Strands agents
+- [ ] OTEL observability — pipe Strands traces to CloudWatch / Statusline
+- [ ] Evaluate Strands as full Ruflo replacement — document remaining gaps
+- [ ] Document migration guide (Ruflo → Strands transition path)
+
+#### Dual-language adapter architecture
+
+The Agent Adapter is implemented in both TypeScript and Python as parallel first-class citizens. Both share the same design patterns (Strategy, Factory, Registry), the same CLI contract (`tf-adapter exec`, `tf-adapter status`, etc.), and the same shell integration. The shell auto-detects which runtime is available.
+
+```
+agent-adapter/
+├── ts/                    # TypeScript adapter (Node.js 20+)
+│   ├── src/backends/      # claude, aider, openhands
+│   ├── src/adapter.ts     # Main adapter class
+│   └── src/cli.ts         # CLI entry point
+├── python/                # Python adapter (Python 3.10+, uv)
+│   ├── turboflow_adapter/
+│   │   ├── backends/      # claude, aider, openhands, strands
+│   │   ├── strands/       # TurboFlow value layer
+│   │   │   ├── agents.py  # 7 pre-configured agent types
+│   │   │   ├── models.py  # Model factory + auto tier selection
+│   │   │   ├── tools.py   # 8 TurboFlow tools (Beads + file ops)
+│   │   │   └── team.py    # 4 multi-agent team recipes
+│   │   ├── adapter.py     # Main adapter class
+│   │   └── cli.py         # CLI entry point (Click)
+│   └── pyproject.toml
+├── shell-integration.sh   # Auto-detects Python or TypeScript runtime
+└── USE_CASES.md           # Hands-on examples
+```
+
+Why both languages:
+- Strands Python SDK is more mature (30+ built-in tools, more model providers, bidirectional streaming, agent steering)
+- Python is the lingua franca of the AI/ML ecosystem
+- TurboFlow already installs Python 3 on every platform
+- Tenants who code in Python get a native experience; TypeScript tenants keep theirs
+
+### Phase 3: Tenant isolation — AWS infrastructure (3-4 weeks)
 
 - [ ] ECS task definition with per-tenant IAM role
 - [ ] EFS volume provisioning per tenant
@@ -326,7 +387,7 @@ gantt
 - [ ] CloudWatch log groups per tenant
 - [ ] Terraform/CDK module for tenant provisioning
 
-### Phase 3: Control plane API (4-6 weeks)
+### Phase 4: Control plane API (4-6 weeks)
 
 - [ ] Tenant CRUD API (create, configure, suspend, delete)
 - [ ] IAM role provisioning automation
@@ -335,7 +396,7 @@ gantt
 - [ ] Health checks and auto-restart
 - [ ] API authentication (API keys or OAuth)
 
-### Phase 4: Dashboard (4-6 weeks)
+### Phase 5: Dashboard (4-6 weeks)
 
 - [ ] Tenant management UI
 - [ ] Usage and cost dashboards
@@ -344,7 +405,7 @@ gantt
 - [ ] Team management (invite, roles)
 - [ ] Web terminal (SSH to tenant container)
 
-### Phase 5: Enterprise features (ongoing)
+### Phase 6: Enterprise features (ongoing)
 
 - [ ] SSO (SAML/OIDC)
 - [ ] Audit logs
@@ -364,7 +425,8 @@ gantt
 **Mitigation:** 
 - Fork Ruflo at a known-good version as a fallback
 - Abstract orchestration behind an interface so Ruflo can be swapped
-- Long-term: evaluate building a lighter orchestration layer
+- **Strands Agents SDK** (Apache-2.0, AWS-backed) provides equivalent multi-agent orchestration patterns (swarms, hierarchies, supervisor-agent) and is a viable replacement — see Phase 2 and Path C in Provider Independence Strategy
+- Long-term: migrate to Strands as orchestrator (eliminates third-party risk entirely)
 
 ### 2. Claude Code licensing
 
@@ -373,7 +435,8 @@ gantt
 **Mitigation:**
 - Review Anthropic's Claude Code terms of service
 - Contact Anthropic's partnerships team for commercial licensing
-- Alternative: use Claude API directly with a custom coding agent (removes Claude Code dependency entirely)
+- **Agent Adapter Interface** allows switching to non-proprietary backends (Aider, OpenHands, Strands) without changing the rest of the stack
+- **Strands Agents** can call Bedrock directly via SDK — no Claude Code binary needed for programmatic/automated use cases
 
 ### 3. Bedrock pricing changes
 
@@ -461,15 +524,16 @@ Take a task description → autonomously plan, code, test, submit PR. Closest co
 | Quality gates | Basic tests | Basic tests | Basic tests | Basic tests | Agentic QE (58 agents) |
 | Bedrock/enterprise | No | No | No | Possible | Native |
 
-### Category 4: Agent orchestration frameworks (CrewAI, LangGraph, AutoGen)
+### Category 4: Agent orchestration frameworks (CrewAI, LangGraph, AutoGen, Strands Agents)
 
-Libraries for building multi-agent systems. Building blocks, not finished products.
+Libraries/SDKs for building multi-agent systems. Building blocks, not finished products.
 
 - CrewAI: role-based agent teams in Python (5.2M monthly downloads)
 - LangGraph: stateful graph workflows (most precise control)
 - AutoGen: multi-agent conversations (Microsoft)
+- **Strands Agents**: model-driven agent SDK from AWS (Apache-2.0, TypeScript + Python, native Bedrock, OTEL, MCP, A2A). Used in production by Kiro, Amazon Q, and AWS Glue.
 
-Overlap with TurboFlow: architectural. Ruflo is conceptually similar — it coordinates multiple agents. But TurboFlow is a complete environment, not a framework you build on.
+Overlap with TurboFlow: architectural. Ruflo is conceptually similar — it coordinates multiple agents. But TurboFlow is a complete environment, not a framework you build on. **Strands is the strongest candidate to replace Ruflo** because it provides equivalent multi-agent patterns, native Bedrock support, and is AWS-backed with a TypeScript SDK that integrates directly into TurboFlow's codebase.
 
 ### Category 5: Claude's own features (Agent Teams, Claude Code Review)
 
@@ -551,10 +615,16 @@ TurboFlow has 3 layers of Claude dependency, from hardest to easiest to replace:
 
 ```mermaid
 graph TB
-    subgraph L1["Layer 1 — HARD to replace"]
+    subgraph L1["Layer 1 — HARD to replace (Strands mitigates both)"]
         CC["Claude Code CLI\n(proprietary binary)"]
         RF["Ruflo v3.5\n(built for Claude Code)"]
         AT["Agent Teams\n(Anthropic experimental)"]
+    end
+
+    subgraph SA["Strands Agents (Apache-2.0, AWS-backed)"]
+        SA_AGENT["Programmatic Agent\n(replaces Claude Code CLI)"]
+        SA_ORCH["Multi-agent Orchestration\n(replaces Ruflo)"]
+        SA_MULTI["Swarms + Graphs + A2A\n(replaces Agent Teams)"]
     end
 
     subgraph L2["Layer 2 — MEDIUM to replace"]
@@ -576,7 +646,12 @@ graph TB
     CM --> CC
     RF --> MCP
 
+    SA_AGENT -.->|"replaces"| CC
+    SA_ORCH -.->|"replaces"| RF
+    SA_MULTI -.->|"replaces"| AT
+
     style L1 fill:#ff6b6b22,stroke:#ff6b6b
+    style SA fill:#4dabf722,stroke:#4dabf7
     style L2 fill:#ffd93d22,stroke:#ffd93d
     style L3 fill:#6bcb7722,stroke:#6bcb77
 ```
@@ -585,15 +660,15 @@ graph TB
 
 | Current component | Claude dependency | Replacement candidates | Effort | Risk |
 |---|---|---|---|---|
-| Claude Code CLI | Hard (proprietary binary) | Aider (Apache 2), OpenHands (MIT), Goose (Apache 2), Codex CLI (Apache 2) | High | Ruflo integration breaks |
-| Ruflo orchestration | Hard (built for Claude Code) | CrewAI, LangGraph, AutoGen, or custom | High | Lose 215 MCP tools, 60+ agents |
+| Claude Code CLI | Hard (proprietary binary) | **Strands Agents (Apache 2, programmatic)**, Aider (Apache 2), OpenHands (MIT), Goose (Apache 2) | Medium | Agent Adapter abstracts the switch |
+| Ruflo orchestration | Hard (built for Claude Code) | **Strands Agents (swarms, hierarchies, supervisor-agent)**, CrewAI, LangGraph | Medium | Strands covers same patterns; must rebuild used agent types |
 | Claude models | Medium (API) | Bedrock multi-model, LiteLLM proxy, OpenRouter | Low-Medium | Already possible via Bedrock |
-| MCP tools (215) | Low (open protocol) | Any MCP-compatible agent (Cline, Goose, OpenHands) | Low | MCP is an open standard |
+| MCP tools (215) | Low (open protocol) | **Strands (native MCP support)**, any MCP-compatible agent | Low | MCP is an open standard |
 | GitNexus | None | Keep as-is | Zero | No Claude dependency |
 | Beads / Dolt | None | Keep as-is | Zero | No Claude dependency |
-| Agentic QE plugin | Medium (runs via Ruflo) | Adapt to new orchestrator | Medium | Depends on Ruflo replacement |
-| Agent Teams | Hard (Anthropic experimental) | CrewAI teams, LangGraph multi-agent, custom | High | Lose peer-to-peer comms |
-| Statusline | None (bash + jq) | Keep as-is | Zero | No Claude dependency |
+| Agentic QE plugin | Medium (runs via Ruflo) | Adapt to Strands orchestrator | Medium | Depends on orchestrator replacement |
+| Agent Teams | Hard (Anthropic experimental) | **Strands multi-agent (swarms, graphs, A2A)**, CrewAI teams | Medium | Strands provides equivalent patterns |
+| Statusline | None (bash + jq) | Keep as-is (augment with Strands OTEL) | Zero | No Claude dependency |
 | Taskfile + Docker | None | Keep as-is | Zero | No Claude dependency |
 
 ### Agent CLI alternatives
@@ -607,6 +682,85 @@ graph TB
 | Codex CLI | OpenAI | Yes (Apache 2) | Yes | No | No | OpenAI models |
 | Goose | Block (Square) | Yes (Apache 2) | Yes | No | Yes | Yes |
 | Amazon Q CLI | AWS | No (free tier) | Yes | No | No | AWS models |
+| **Strands Agents** | **AWS** | **Yes (Apache 2)** | **Yes** | **Yes (swarms, graphs, hierarchies)** | **Yes** | **Yes (Bedrock, OpenAI, Anthropic, Google, Ollama)** |
+
+### Strands Agents SDK — Strategic Analysis
+
+[Strands Agents](https://strandsagents.com/) is an open-source (Apache-2.0) agent SDK from AWS. It uses a model-driven approach: you provide a prompt, tools, and a model provider, and the LLM handles reasoning, planning, and tool execution autonomously. It's used in production by AWS teams including Kiro, Amazon Q, and AWS Glue.
+
+#### Why Strands is uniquely relevant to TurboFlow
+
+Strands is not just another CLI alternative — it operates at a different level. While Claude Code, Aider, and OpenHands are agent CLIs (you shell out to them), Strands is a **programmatic agent SDK** with a TypeScript package (`@strands-agents/sdk`). This means it can be imported directly into TurboFlow's TypeScript codebase, invoked from APIs, and composed into multi-agent systems — without depending on any external binary.
+
+#### Strands vs Ruflo — capability overlap
+
+| Capability | Ruflo | Strands Agents |
+|---|---|---|
+| Multi-agent orchestration | Swarm topologies (hierarchical, mesh, ring, star) | Swarms, graphs, hierarchies, supervisor-agent, agent-as-tool |
+| MCP tools | 215 tools via Claude Code | Native MCP support (open protocol) |
+| Agent-as-tool pattern | Custom implementation | First-class (`@tool` decorator, agents as tools) |
+| Model routing | 3-tier (Opus/Sonnet/Haiku) | Multi-model via providers (Bedrock, OpenAI, Anthropic, Google, Ollama) |
+| Observability | Statusline Pro (bash + jq) | OpenTelemetry (distributed traces, metrics, structured logs) |
+| Bedrock integration | Via env vars | First-class `BedrockModel` provider |
+| Session management | None (relies on Beads) | Built-in (file, S3, repository managers) |
+| Lifecycle hooks | None | Built-in hook system |
+| License | Third-party npm (risk #1 in plan) | Apache-2.0, AWS-backed |
+| TypeScript SDK | No (CLI only) | Yes (native, `@strands-agents/sdk`) |
+| Deployment | Container only | Lambda, Fargate, ECS, EKS, Bedrock AgentCore |
+| A2A (Agent-to-Agent) | No | Yes (open protocol) |
+
+#### Strands directly mitigates top risks
+
+1. **Risk #1 (Ruflo is third-party):** Strands is AWS-backed, Apache-2.0, used in production by AWS services. It provides the same multi-agent orchestration patterns Ruflo does, without the third-party dependency risk.
+2. **Risk #2 (Claude Code licensing):** Strands agents don't require the Claude Code binary. They call Bedrock (or any model provider) directly via the SDK. This eliminates the proprietary binary dependency entirely for programmatic/automated use cases.
+3. **Risk #4 (Container cold start):** Strands agents can deploy to Lambda (serverless, instant start) or Bedrock AgentCore, not just containers.
+
+#### What Strands does NOT replace
+
+- **Claude Code CLI for interactive use:** Developers who want a terminal-based coding assistant still use `claude`. Strands is programmatic, not a REPL.
+- **Beads / Dolt:** Strands has session management but not git-backed, branchable project memory. Beads remains unique.
+- **GitNexus:** Strands has no codebase knowledge graph. GitNexus remains unique.
+- **Statusline Pro:** Strands has OTEL observability but not the terminal-based statusline. Both can coexist.
+
+#### Two roles for Strands in TurboFlow
+
+**Role 1 — As a backend in the Agent Adapter (implemented, verified)**
+
+Strands is the fourth backend alongside Claude Code, Aider, and OpenHands. Unlike the CLI-based backends, Strands is invoked programmatically from Python — no shell-out needed. Verified end-to-end with Bedrock (Strands 1.35.0, Haiku + Sonnet models).
+
+On top of the raw Strands SDK, TurboFlow adds a value layer (`turboflow_adapter/strands/`) that provides:
+
+- **Pre-configured agent types** — `create_agent("coder")` gives you a Sonnet-powered coding agent with Beads memory, file tools, and a tuned system prompt. 7 types available.
+- **Automatic model routing** — `select_tier(task)` picks opus/sonnet/haiku based on task complexity. Replaces Ruflo's 3-tier routing.
+- **Multi-agent team recipes** — `create_team("feature")` creates a supervisor + 4 specialists (architect, coder, tester, reviewer) using Strands' agents-as-tools pattern. Replaces `rf-swarm`.
+- **Beads integration** — 4 Beads tools (ready, create, close, remember) built into every agent. Agents auto-check project state and record decisions.
+- **File tools** — read, write, list, run_command included by default.
+
+```python
+from turboflow_adapter.strands import create_agent, create_team, select_tier
+
+# Single agent with auto-configured everything
+coder = create_agent("coder")
+result = coder("implement the login feature")
+
+# Multi-agent team — one line
+team = create_team("feature")
+result = team("Add rate limiting to the API")
+
+# Auto model routing
+tier = select_tier("Fix typo in README")  # → haiku (cheapest)
+tier = select_tier("Design event-driven architecture for...")  # → opus (most capable)
+```
+
+**Role 2 — Replace Ruflo as the orchestrator (medium-term, aligns with Path C)**
+
+Strands' supervisor-agent pattern maps directly to how Ruflo orchestrates agent swarms. A coordinator agent delegates to specialist agents (coder, tester, reviewer) exposed as tools. This would eliminate both the Ruflo and Claude Code dependencies while gaining OTEL observability, A2A protocol support, and native Bedrock AgentCore deployment.
+
+```
+Current:  Ruflo → Claude Code CLI → Bedrock
+Future:   Strands Orchestrator Agent → Strands Specialist Agents → Bedrock
+          (all TypeScript, all programmatic, all Apache-2.0)
+```
 
 ### Migration paths
 
@@ -617,15 +771,16 @@ graph LR
         A2 --> A3["Cost optimization\nModel flexibility"]
     end
 
-    subgraph MID["Path B — Medium term (6-8 weeks)"]
-        B1["Agent Adapter Interface"] --> B2["Claude Code\n(default)"]
-        B1 --> B3["Aider\n(multi-model)"]
-        B1 --> B4["OpenHands\n(OSS)"]
+    subgraph MID["Path B — Medium term (4-6 weeks)"]
+        B1["Agent Adapter Interface\n(TypeScript)"] --> B2["Claude Code\n(default, CLI)"]
+        B1 --> B3["Aider\n(multi-model, CLI)"]
+        B1 --> B4["OpenHands\n(OSS, CLI/Docker)"]
+        B1 --> B5["Strands Agents\n(programmatic, native Bedrock)"]
     end
 
-    subgraph LONG["Path C — Long term (3-6 months)"]
-        C1["Custom orchestration\n(LangGraph/CrewAI)"] --> C2["Any LLM agent"]
-        C1 --> C3["Own the entire stack"]
+    subgraph LONG["Path C — Long term (2-4 months)"]
+        C1["Strands as orchestrator\n(replaces Ruflo)"] --> C2["Strands specialist agents\n(coder, tester, reviewer)"]
+        C1 --> C3["Own the entire stack\n(Apache-2.0, no proprietary deps)"]
     end
 
     NOW --> MID --> LONG
@@ -639,32 +794,51 @@ Keep the architecture as-is but route model calls through Bedrock or LiteLLM. Cl
 - Gain: cost optimization, reduced model lock-in
 - Limitation: still depends on Claude Code binary
 
-#### Path B: Abstract the agent layer (medium effort)
+#### Path B: Abstract the agent layer + add Strands (medium effort)
 
-Create an adapter interface between Ruflo and the agent CLI. Support Claude Code as the primary backend, but allow Aider or OpenHands as alternatives.
+Create an adapter interface between Ruflo and the agent backends. Support Claude Code as the primary backend for interactive CLI use, and add Strands Agents as the programmatic backend for automated/API-driven use. Aider and OpenHands available as additional CLI options.
 
 ```
-Ruflo orchestrator
+Ruflo orchestrator (existing, unchanged)
     ↓
-Agent Adapter Interface
+Agent Adapter Interface (TypeScript, Strategy pattern)
     ↓
-┌─────────────┬──────────────┬──────────────┐
-│ Claude Code │    Aider     │  OpenHands   │
-│ (default)   │ (multi-model)│  (OSS)       │
-└─────────────┴──────────────┴──────────────┘
+┌─────────────┬──────────────┬──────────────┬──────────────────┐
+│ Claude Code │    Aider     │  OpenHands   │  Strands Agents  │
+│ (default,   │ (multi-model │  (OSS,       │  (programmatic,  │
+│  CLI)       │  CLI)        │  CLI/Docker) │  native Bedrock) │
+└─────────────┴──────────────┴──────────────┴──────────────────┘
 ```
 
-- Effort: 6-8 weeks
-- Gain: clients choose their agent backend; not locked to Anthropic
-- Limitation: feature parity gap (Agent Teams, some MCP tools only work with Claude Code)
+- Effort: 4-6 weeks
+- Gain: clients choose their agent backend; Strands provides a fully open-source, programmatic path with no proprietary binary dependency
+- Limitation: feature parity gap between backends (Agent Teams only on Claude Code, OTEL only on Strands)
+- **Status: Agent Adapter implemented** (`agent-adapter/` — TypeScript, Strategy + Factory + Registry patterns). Strands backend to be added.
 
-#### Path C: Build custom orchestration (highest effort, most freedom)
+#### Path C: Strands as orchestrator — replace Ruflo (highest strategic value)
 
-Replace both Claude Code and Ruflo with a custom system using LangGraph or CrewAI for orchestration and any LLM-backed coding agent for execution.
+Replace both Claude Code and Ruflo with Strands Agents for orchestration. Use Strands' supervisor-agent pattern where a coordinator agent delegates to specialist agents (coder, tester, reviewer, security) exposed as tools. Each specialist is a Strands Agent with its own system prompt, tools, and model configuration.
 
-- Effort: 3-6 months
-- Gain: full provider independence, own the entire stack, zero third-party risk
-- Limitation: lose Ruflo's 215 MCP tools, 60+ agents, and skills for free
+```
+Strands Orchestrator Agent (coordinator)
+    ↓ agents-as-tools
+┌──────────┬──────────┬──────────┬──────────────┐
+│  Coder   │  Tester  │ Reviewer │  Security    │
+│  Agent   │  Agent   │  Agent   │  Architect   │
+└──────────┴──────────┴──────────┴──────────────┘
+    ↓ all agents use
+┌──────────────────────────────────────────────┐
+│  Bedrock (Claude, Nova, Llama)               │
+│  MCP Tools (GitNexus, custom)                │
+│  Beads (cross-session memory)                │
+│  OTEL (distributed tracing + metrics)        │
+└──────────────────────────────────────────────┘
+```
+
+- Effort: 2-4 months
+- Gain: full provider independence, own the entire stack (Apache-2.0), OTEL observability, A2A protocol, deployable to Lambda/Fargate/Bedrock AgentCore
+- Limitation: lose Ruflo's 215 pre-built MCP tools and 60+ agent types (must rebuild the ones actually used)
+- **Key advantage over original Path C:** Strands is a proven, AWS-backed framework — not building from scratch with LangGraph/CrewAI. Reduces effort from 3-6 months to 2-4 months.
 
 ### What's already portable (zero effort)
 
@@ -681,17 +855,25 @@ This is the 40% that no competitor has — and it works with any agent backend.
 
 ### Recommendation
 
-Start with Path A (Bedrock), plan for Path B (agent adapter). Path C only if building a standalone company around this. The portable components (Beads, GitNexus, infra) are the strategic assets — they're unique, provider-independent, and defensible.
+Start with Path A (Bedrock) — already in progress. Move immediately to Path B (Agent Adapter + Strands backend) as the primary development focus. Path B is the highest-leverage work: it reduces vendor risk, adds a programmatic agent option, and lays the groundwork for Path C. Infrastructure (tenant isolation, control plane) comes after the agent layer is provider-independent.
+
+Path C (Strands as orchestrator) should be evaluated after gaining hands-on experience with Strands through Path B. The portable components (Beads, GitNexus, infra) are the strategic assets — they're unique, provider-independent, and defensible regardless of which orchestration layer is used.
 
 ---
 
 ## Next Steps
 
-1. Validate Bedrock integration on the current branch (Path A)
-2. Build a minimal control plane (tenant CRUD + IAM provisioning)
-3. Deploy 2-3 internal tenants on ECS to prove the model
-4. Design the Agent Adapter Interface (Path B groundwork)
-5. Pilot with 1-2 external clients
-6. Build dashboard and billing
-7. Evaluate Aider/OpenHands as alternative agent backends
-8. Launch
+1. ~~Validate Bedrock integration on the current branch (Path A)~~ — in progress
+2. ~~Design the Agent Adapter Interface (Path B groundwork)~~ — **done** (`agent-adapter/ts/`)
+3. ~~Implement Strands Agents backend~~ — **done** (Python, Strands 1.35.0, verified with Bedrock)
+4. ~~Build Strands multi-agent patterns~~ — **done** (4 team recipes: feature, bug-fix, code-review, security-audit)
+5. ~~Integrate Strands with Beads~~ — **done** (4 Beads tools built into every agent)
+6. ~~Auto model routing~~ — **done** (`select_tier()` replaces Ruflo 3-tier routing)
+7. **Integrate Strands with GitNexus** — codebase intelligence as MCP tool for Strands agents
+8. **Add OTEL observability** — pipe Strands traces to CloudWatch / Statusline
+9. **Evaluate Strands as full Ruflo replacement** — document remaining gaps, build migration guide
+10. Deploy 2-3 internal tenants on ECS to prove the model (Phase 3)
+11. Build control plane (tenant CRUD + IAM provisioning)
+12. Pilot with 1-2 external clients
+13. Build dashboard and billing
+14. Launch
