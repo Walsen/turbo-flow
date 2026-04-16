@@ -1,463 +1,365 @@
-# Turbo Flow v4.0 — The Ruflo Migration
+# TurboFlow — Multi-Agent Agentic Development Platform
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-4.0.0-blue?style=for-the-badge)
-![Ruflo](https://img.shields.io/badge/Ruflo-v3.5-purple?style=for-the-badge)
-![MCP Tools](https://img.shields.io/badge/MCP_Tools-215+-green?style=for-the-badge)
-![Plugins](https://img.shields.io/badge/Plugins-6-critical?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-orange?style=for-the-badge)
-![Adventure Wave Labs](https://img.shields.io/badge/Adventure_Wave_Labs-Builder-ff6b6b?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-4.1.0-blue?style=for-the-badge)
+![Strands](https://img.shields.io/badge/Strands_Agents-1.35-purple?style=for-the-badge)
+![Bedrock](https://img.shields.io/badge/Amazon_Bedrock-native-orange?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
-**Complete Agentic Development Environment — Ruflo v3.5 + Beads + Worktrees + Agent Teams**
+**AI coding agents with cross-session memory, codebase intelligence, and multi-agent teams.**
 
-*Built & Presented by [Adventure Wave Labs](https://www.adventureonthewave.com/#projects)*
+**Run locally or deploy to AWS with one command.**
 
-[Quick Start](#-quick-start) • [Installation](#-what-gets-installed) • [Plugins](#-plugins-6) • [Commands](#️-key-commands) • [Migration](#-migrating-from-v3x) • [Resources](#-resources)
+[Quick Start](#quick-start) • [Agent Types](#agent-types) • [Team Recipes](#team-recipes) • [CLI Reference](#cli-reference) • [Deploy to Cloud](#deploy-to-cloud) • [Architecture](#architecture)
 
 </div>
 
 ---
 
-## About Adventure Wave Labs
+## What is TurboFlow?
 
-<div align="center">
-  <img src="https://i.ibb.co/N6m72sYQ/AWLabs.png" alt="Adventure Wave Labs" width="600">
-</div>
+TurboFlow is a platform for running AI coding agents that:
 
-**Adventure Wave Labs** is the team behind Turbo Flow a complete agentic development environment built for the Claude ecosystem. We design, build, and maintain the tooling that brings together orchestration, memory, codebase intelligence, and agent isolation into a single streamlined workflow.
-
----
-
-## What's New in v4.0.0
-
-| Metric | v3.4.1 | v4.0.0 | Change |
-|--------|--------|--------|--------|
-| Installation Steps | 15 | **10** | -5 (consolidated) |
-| Core Packages | 4 separate | **1 (Ruflo)** | -75% |
-| MCP Tools | 175+ | **215+** | +23% |
-| Agents | 60+ | **60+** | — |
-| Plugins | 15 | **6** | -9 (redundant removed) |
-| Cross-session Memory | None | **Beads** | New |
-| Agent Isolation | None | **Git Worktrees** | New |
-| Codebase Graph | None | **GitNexus** | New |
-| UI/UX Skill | Yes | **Yes** | Kept |
-| Statusline | Yes | **Yes** | Updated to 4.0 |
-
-### Major Changes
-
-- **claude-flow → Ruflo v3.5** — Single `npx ruflo@latest init` replaces 4 separate installs
-- **Beads** — Cross-session project memory via git-native JSONL
-- **GitNexus** — Codebase knowledge graph with MCP server and blast-radius detection
-- **Native Git Worktrees** — Per-agent isolation with auto PG Vector schema namespacing
-- **Native Agent Teams** — Anthropic's experimental multi-agent spawning
-- **6 focused plugins** — 9 redundant/domain-specific plugins removed
-- **OpenSpec** — Spec-driven development kept
-- **UI UX Pro Max** — Design skill kept
-- **Statusline Pro v4.0** — Updated with TF 4.0 branding
-
-### Removed (redundant with Ruflo v3.5 or out of scope)
-
-- `claude-flow@alpha`, `@ruvector/cli`, `@ruvector/sona`, `@claude-flow/browser` → bundled in Ruflo
-- 9 plugins: healthcare-clinical, financial-risk, legal-contracts, cognitive-kernel, hyperbolic-reasoning, quantum-optimizer, neural-coordination, prime-radiant, ruvector-upstream
-- Claudish, Agentic Jujutsu, Spec-Kit, agtrace, PAL MCP → bundled or redundant
-- HeroUI + Tailwind + TypeScript scaffold → out of scope
-- Ars Contexta, OpenClaw Secure Stack → out of scope
-
----
-
-## Architecture
-
-```mermaid
-block-beta
-    columns 1
-
-    block:INTERFACE["INTERFACE"]
-        columns 3
-        CLI["Claude Code CLI"]
-        WebUI["Open WebUI (4 instances)"]
-        Status["Statusline Pro v4.0"]
-    end
-
-    block:ORCH["ORCHESTRATION — Ruflo v3.5"]
-        columns 1
-        O1["60+ Agents | 215+ MCP Tools | Auto-activated Skills"]
-        O2["AgentDB v3 | RuVector WASM | SONA | 3-Tier Model Routing"]
-        O3["59 MCP Browser Tools | Observability | Gating"]
-    end
-
-    block:PLUGINS["PLUGINS (6)"]
-        columns 6
-        P1["Agentic QE"]
-        P2["Code Intel"]
-        P3["Test Intel"]
-        P4["Perf"]
-        P5["Teammate"]
-        P6["Gastown"]
-    end
-
-    block:INTEL["CODEBASE INTELLIGENCE — GitNexus"]
-        columns 1
-        I1["Knowledge Graph | Blast Radius Detection | MCP Server"]
-    end
-
-    block:MEMORY["MEMORY (Three-Tier)"]
-        columns 3
-        M1["Beads\nproject/git JSONL"]
-        M2["Native Tasks\nsession ~/.claude/"]
-        M3["AgentDB\n+ RuVector WASM"]
-    end
-
-    block:ISO["ISOLATION"]
-        columns 1
-        IS1["Git Worktrees per Agent | PG Vector Schema per Worktree"]
-        IS2["Auto GitNexus Indexing | Agent Teams (experimental)"]
-    end
-
-    block:SKILLS["SKILLS"]
-        columns 1
-        SK1["UI UX Pro Max | OpenSpec | 36+ Ruflo Auto-activated Skills"]
-    end
-
-    block:INFRA["INFRASTRUCTURE"]
-        columns 3
-        INF1["DevPod"]
-        INF2["Codespaces"]
-        INF3["Rackspace Spot"]
-    end
-```
+- **Remember across sessions** — Beads tracks decisions, patterns, and work items. AgentDB provides semantic search over past solutions.
+- **Understand your codebase** — GitNexus builds a knowledge graph of dependencies, call chains, and blast radius.
+- **Work as teams** — Multi-agent recipes (feature, bug-fix, code-review, security-audit, TDD, QA gate) coordinate specialists automatically.
+- **Route to the right model** — Auto-selects Opus for architecture, Sonnet for coding, Haiku for simple tasks. Saves 40-75% on API costs.
+- **Run anywhere** — Same code runs locally (Python) or deployed to AWS (Bedrock AgentCore). One `tf` command for both.
 
 ---
 
 ## Quick Start
 
-### DevPod Installation
+### Prerequisites
 
-<details>
-<summary><b>macOS</b></summary>
+- Python 3.10+ and [uv](https://docs.astral.sh/uv/getting-started/installation/)
+- AWS credentials with Bedrock access (for model calls)
+
+### Install
 
 ```bash
-brew install loft-sh/devpod/devpod
+git clone https://github.com/adventurewavelabs/turbo-flow
+cd turbo-flow/agent-adapter/python
+uv sync --extra strands
 ```
-</details>
 
-<details>
-<summary><b>Windows</b></summary>
+### Configure
 
 ```bash
-choco install devpod
+# Option A: AWS Bedrock (recommended)
+export CLAUDE_CODE_USE_BEDROCK=1
+export AWS_REGION=us-east-1
+
+# Option B: Anthropic API directly
+export ANTHROPIC_API_KEY=sk-ant-...
 ```
-</details>
 
-<details>
-<summary><b>Linux</b></summary>
+### Run your first agent
 
 ```bash
-curl -L -o devpod "https://github.com/loft-sh/devpod/releases/latest/download/devpod-linux-amd64"
-sudo install devpod /usr/local/bin
-```
-</details>
+# Via CLI
+uv run tf "Write a Python function to merge two sorted lists"
 
-### Launch
-
-```bash
-# DevPod (recommended)
-devpod up https://github.com/adventurewavelabs/turbo-flow --ide vscode
-
-# Codespaces
-# Push to GitHub → Open in Codespace → runs automatically
-
-# Manual (via bootstrap — installs Task runner, then runs all setup steps)
-git clone https://github.com/adventurewavelabs/turbo-flow -b main
-cd turbo-flow
-bash devpods/bootstrap.sh
-source ~/.bashrc
-turbo-status
+# Via Python
+python -c "
+from turboflow_adapter.strands import create_agent
+agent = create_agent('coder')
+print(agent('Write a Python function to merge two sorted lists'))
+"
 ```
 
 ---
 
-## What Gets Installed
+## Agent Types
 
-The `devpods/Taskfile.yml` (invoked via `bootstrap.sh`) installs the complete stack in **10 idempotent steps**:
+Pre-configured agents with tuned system prompts, default model tiers, and TurboFlow tools built in.
 
-### Step 1: System Prerequisites
+| Type | Default Model | What it does |
+|---|---|---|
+| `coder` | Sonnet | Writes implementation code. Has file tools + Beads. |
+| `tester` | Sonnet | Writes tests, covers edge cases and error paths. |
+| `reviewer` | Sonnet | Reviews code for correctness, security (CWE IDs), performance. |
+| `system-architect` | Opus | Designs systems with trade-off analysis. Records decisions in Beads. |
+| `researcher` | Sonnet | Investigates bugs, analyzes requirements, gathers evidence. |
+| `coordinator` | Opus | Orchestrates multi-agent work, tracks progress via Beads. |
+| `security-architect` | Opus | Audits for OWASP Top 10, rates severity, provides remediation. |
 
-| Package | Purpose |
-|:--------|:--------|
-| `build-essential` | C/C++ compiler (gcc, g++, make) |
-| `python3` | Python runtime |
-| `git` | Version control |
-| `curl` | HTTP client |
-| `jq` | JSON processor (required for statusline) |
-| `Node.js 20+` | JavaScript runtime (required by Ruflo v3.5) |
+```python
+from turboflow_adapter.strands import create_agent
 
-### Step 2: Claude Code + Ruflo v3.5
+# Each agent comes with the right model, prompt, and tools
+coder = create_agent("coder")
+reviewer = create_agent("reviewer")
+architect = create_agent("system-architect")
 
-| Component | Purpose |
-|:----------|:--------|
-| `Claude Code` | Anthropic's agentic coding CLI |
-| `Ruflo v3.5` | Orchestration engine — replaces claude-flow@alpha |
-| Ruflo MCP | Registered as MCP server in Claude Code |
-| Ruflo Doctor | Auto-diagnostic and fix pass |
-
-> Ruflo v3.5 bundles: AgentDB v3, RuVector WASM, SONA, 215 MCP tools, 60+ agents, skills system, 3-tier model routing, 59 browser automation MCP tools, observability, gating
-
-### Step 3: Ruflo Plugins (6) + OpenSpec
-
-| Plugin | Purpose |
-|:-------|:--------|
-| **Agentic QE** | 58 QE agents — TDD, coverage, security scanning, chaos engineering |
-| **Code Intelligence** | Code analysis, pattern detection, refactoring suggestions |
-| **Test Intelligence** | Test generation, gap analysis, flaky test detection |
-| **Perf Optimizer** | Performance profiling, bottleneck detection |
-| **Teammate Plugin** | Bridges Native Agent Teams with Ruflo swarms (21 MCP tools) |
-| **Gastown Bridge** | WASM-accelerated orchestration, Beads sync (20 MCP tools) |
-| **OpenSpec** | Spec-driven development (independent npm package) |
-
-### Step 4: UI UX Pro Max Skill
-
-| Component | Purpose |
-|:----------|:--------|
-| `uipro-cli` | Design system skill — component patterns, accessibility, responsive layouts, design tokens |
-
-### Step 5: GitNexus (Codebase Knowledge Graph)
-
-| Component | Purpose |
-|:----------|:--------|
-| `GitNexus` | Indexes dependencies, call chains, execution flows |
-| GitNexus MCP | Registered as MCP server — blast-radius detection |
-
-### Step 6: Beads (Cross-Session Memory)
-
-| Component | Purpose |
-|:----------|:--------|
-| `@beads/bd` | Git-native JSONL project memory — issues, decisions, blockers |
-
-### Step 7: Workspace + Agent Teams
-
-| Component | Purpose |
-|:----------|:--------|
-| Directories | `src/` `tests/` `docs/` `scripts/` `config/` `plans/` |
-| Agent Teams | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` enabled |
-
-### Step 8: Statusline Pro v4.0
-
-3-line statusline with 15 components:
-
+# Override model tier if needed
+cheap_coder = create_agent("coder", model_tier="haiku")
+powerful_coder = create_agent("coder", model_tier="opus")
 ```
-LINE 1: [Project] name | [Model] Sonnet | [Git] branch | [TF] 4.0 | [SID] abc123
-LINE 2: [Tokens] 50k/200k | [Ctx] #######--- 65% | [Cache] 42% | [Cost] $1.23 | [Time] 5m
-LINE 3: [+150] [-50] | [READY]
-```
-
-### Step 9: CLAUDE.md Generation
-
-Generates workspace context file with:
-- 3-tier memory protocol (Beads → Native Tasks → AgentDB)
-- Isolation rules (one worktree per agent)
-- Agent Teams rules (max 3 teammates, recursion depth 2)
-- Model routing tiers (Opus/Sonnet/Haiku)
-- Plugin reference
-- Cost guardrails ($15/hr)
-
-### Step 10: Aliases + Environment + MCP Registration
-
-50+ aliases across families: `rf-*`, `ruv-*`, `mem-*`, `bd-*`, `wt-*`, `gnx-*`, `aqe-*`, `os-*`, `hooks-*`, `neural-*`, `turbo-status`, `turbo-help`
 
 ---
 
-## Plugins (6)
+## Team Recipes
 
-| Plugin | MCP Tools | Purpose |
-|:-------|:----------|:--------|
-| **Agentic QE** | 16 | 58 QE agents, TDD, coverage, security, chaos engineering |
-| **Code Intelligence** | — | Code analysis, patterns, refactoring |
-| **Test Intelligence** | — | Test generation, gaps, flaky tests |
-| **Perf Optimizer** | — | Profiling, bottlenecks, optimization |
-| **Teammate Plugin** | 21 | Agent Teams ↔ Ruflo swarms bridge, semantic routing |
-| **Gastown Bridge** | 20 | WASM orchestration, Beads sync, convoys |
+Multi-agent teams using the supervisor pattern. One line creates a supervisor that delegates to specialists.
 
-### Removed Plugins (9)
+| Recipe | Agents | Use case |
+|---|---|---|
+| `feature` | architect + coder + tester + reviewer | Implement a new feature end-to-end |
+| `bug-fix` | researcher + coder + tester | Investigate, fix, and write regression test |
+| `code-review` | reviewer + security architect | Code quality + security audit |
+| `security-audit` | security architect + researcher + reviewer | Full OWASP audit with severity ratings |
+| `full-build` | architect + coder + tester + reviewer + security | Design → build → test → review → security |
+| `tdd` | researcher + tester + coder | Tests first, then implement to pass |
+| `coverage-analysis` | researcher + tester | Find test gaps, generate missing tests |
+| `qa-gate` | reviewer + tester + security | PASS/FAIL verdict for merge readiness |
 
-| Plugin | Reason |
-|:-------|:-------|
-| healthcare-clinical | Domain-specific (HIPAA/FHIR) — not needed |
-| financial-risk | Domain-specific (PCI-DSS/SOX) — not needed |
-| legal-contracts | Domain-specific — not needed |
-| cognitive-kernel | Redundant with Ruflo's neural system |
-| hyperbolic-reasoning | Redundant with RuVector WASM hyperbolic embeddings |
-| quantum-optimizer | Redundant with Ruflo's EWC++ and RVFOptimizer |
-| neural-coordination | Redundant with Ruflo's swarm coordination |
-| prime-radiant | Niche — mathematical interpretability |
-| ruvector-upstream | Redundant — RuVector bundled in Ruflo v3.5 |
+```python
+from turboflow_adapter.strands import create_team
+
+# One line — supervisor coordinates the specialists
+team = create_team("feature")
+result = team("Add rate limiting middleware to the Express API")
+
+# QA gate before merging
+gate = create_team("qa-gate")
+result = gate("Check the current branch for merge readiness")
+
+# Full application build
+team = create_team("full-build")
+result = team("Build a bookmark manager API with FastAPI and SQLite")
+```
 
 ---
 
-## Key Commands
+## CLI Reference
 
-<details>
-<summary><b>Status & Help</b></summary>
-
-```bash
-turbo-status         # Check all components
-turbo-help           # Complete command reference
-rf-doctor            # Ruflo health check
-rf-plugins           # List installed plugins
-```
-</details>
-
-<details>
-<summary><b>Orchestration (Ruflo)</b></summary>
+The `tf` command works locally and in the cloud. If `TURBOFLOW_RUNTIME_ARN` is set, it routes to your deployed agent on AgentCore. Otherwise it runs locally via Strands.
 
 ```bash
-rf-wizard            # Interactive setup
-rf-swarm             # Hierarchical swarm (8 agents max)
-rf-mesh              # Mesh swarm
-rf-ring              # Ring swarm
-rf-star              # Star swarm
-rf-spawn coder       # Spawn a coder agent
-rf-daemon            # Start background workers
-rf-status            # Ruflo status
+# Basic usage
+tf "Write a fibonacci function"
+
+# Specific agent type
+tf -a reviewer "Review src/auth.py for security issues"
+tf -a system-architect "Design a notification system"
+
+# Multi-agent team
+tf --team feature "Add user registration with email verification"
+tf --team qa-gate "Check this PR for merge readiness"
+tf --team full-build "Build a task management API"
+
+# Model override
+tf -m haiku "Fix the typo in README"          # cheapest
+tf -m opus "Design event-driven architecture"  # most capable
+
+# Force local or cloud
+tf --local "prompt"                            # always local (Strands)
+tf --cloud "prompt"                            # always cloud (AgentCore)
+tf --local -b aider "prompt"                   # specific local backend
+
+# Status and health
+tf status                                      # local + cloud status
+tf health                                      # health check
+tf backends                                    # list available backends
 ```
-</details>
 
-<details>
-<summary><b>Memory</b></summary>
+### Environment variables
 
-```bash
-bd-ready             # Check project state (session start)
-bd-add               # Record issue/decision/blocker
-bd-list              # List beads
-ruv-remember K V     # Store in AgentDB
-ruv-recall Q         # Query AgentDB
-mem-search Q         # Search ruflo memory
-mem-stats            # Memory statistics
-```
-</details>
-
-<details>
-<summary><b>Isolation</b></summary>
-
-```bash
-wt-add agent-1       # Create worktree for agent
-wt-remove agent-1    # Clean up worktree
-wt-list              # Show all worktrees
-wt-clean             # Prune stale worktrees
-```
-</details>
-
-<details>
-<summary><b>Quality & Testing</b></summary>
-
-```bash
-aqe-generate         # Generate tests (Agentic QE plugin)
-aqe-gate             # Quality gate
-os-init              # Initialize OpenSpec in project
-os                   # Run OpenSpec
-```
-</details>
-
-<details>
-<summary><b>Intelligence</b></summary>
-
-```bash
-hooks-train          # Deep pretrain on codebase
-hooks-route          # Route task to optimal agent
-neural-train         # Train neural patterns
-neural-patterns      # View learned patterns
-gnx-analyze          # Index repo into knowledge graph
-gnx-serve            # Start local server for web UI
-gnx-wiki             # Generate repo wiki from graph
-```
-</details>
+| Variable | Default | Description |
+|---|---|---|
+| `CLAUDE_CODE_USE_BEDROCK` | — | Set to `1` to use Amazon Bedrock |
+| `AWS_REGION` | `us-east-1` | AWS region for Bedrock |
+| `TURBOFLOW_AGENT_BACKEND` | `claude` | Default local backend |
+| `TURBOFLOW_RUNTIME_ARN` | — | AgentCore Runtime ARN (enables cloud mode) |
+| `TF_ADAPTER_LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARN, ERROR |
 
 ---
 
-## Migrating from v3.x
+## Auto Model Routing
 
-1. Your old `cf-*` aliases are gone — use `rf-*` instead
-2. Slash commands (`/sparc`, etc.) are gone — Ruflo auto-activates skills
-3. Run `bd init` in your project repos to enable Beads memory
-4. Run `npx gitnexus analyze` in your repos to build the knowledge graph
-5. The `v3/` directory preserves everything — nothing was deleted
+TurboFlow automatically selects the cheapest model that can handle the task:
 
-| v3.4.1 | v4.0.0 |
-|:-------|:-------|
-| `cf-init` | `rf-init` |
-| `cf-swarm` | `rf-swarm` |
-| `cf-doctor` | `rf-doctor` |
-| `cf-mcp` | Automatic via `rf-wizard` |
-| `mem-search` | `mem-search` (unchanged) |
-| `cfb-open` | Via Ruflo's bundled browser MCP tools |
-| No cross-session memory | `bd-ready`, `bd-add` |
-| No isolation | `wt-add`, `wt-remove` |
-| No codebase graph | `gnx-analyze` |
+```python
+from turboflow_adapter.strands import select_tier
+
+select_tier("Fix typo in README")                    # → haiku ($)
+select_tier("Implement JWT token refresh")           # → sonnet ($$)
+select_tier("Design CQRS event-sourcing architecture") # → opus ($$$)
+```
+
+This saves 40-75% on Bedrock costs compared to using Sonnet for everything.
 
 ---
 
-## Repository Structure
+## Memory
+
+### Beads (cross-session project memory)
+
+Every agent automatically checks Beads at session start and records work when done.
+
+```bash
+bd ready              # Check project state
+bd create "title" -t feature -p 1 --description "..."
+bd close <id> --reason "what was done"
+bd remember "key" "value"
+```
+
+### AgentDB (semantic vector memory)
+
+Search past patterns and solutions by meaning, not just keywords.
+
+```python
+from turboflow_adapter.strands.memory import remember, recall
+
+remember("pattern/retry", "Use exponential backoff with jitter", "pattern")
+results = recall("how to handle retries")  # finds by semantic similarity
+```
+
+---
+
+## Codebase Intelligence (GitNexus)
+
+Agents can query the codebase knowledge graph for dependencies, call chains, and blast radius.
+
+```bash
+npx gitnexus analyze          # Index your repo
+npx gitnexus status           # Check index status
+```
+
+Agents get GitNexus tools automatically — they can check blast radius before editing shared code.
+
+---
+
+## Deploy to Cloud
+
+TurboFlow deploys to AWS Bedrock AgentCore as a serverless agent. Same capabilities as local — agent types, team recipes, model routing, memory, tools.
+
+### Setup
+
+```bash
+# Install AgentCore CLI
+npm install -g @aws/agentcore
+
+# Build deployment package
+cd infra/agent-runtime
+bash build.sh
+
+# Deploy
+agentcore deploy --yes
+```
+
+### Invoke
+
+```bash
+# Set the runtime ARN (from deploy output)
+export TURBOFLOW_RUNTIME_ARN="arn:aws:bedrock-agentcore:us-east-1:..."
+
+# Now tf routes to the cloud automatically
+tf "Write a fibonacci function"
+tf -a reviewer "Review the auth module"
+tf --team feature "Add rate limiting"
+```
+
+### CI/CD
+
+Deployment is automated via GitHub Actions. Changes to agent code trigger a deploy with smoke test. See `.github/workflows/deploy-agentcore.yml`.
+
+---
+
+## Architecture
+
+```
+tf "prompt"
+  ↓
+  ├── Cloud (TURBOFLOW_RUNTIME_ARN set)
+  │     → AgentCore Runtime (Strands agent in microVM)
+  │         ├── create_agent() / create_team()
+  │         ├── Beads + AgentDB + GitNexus tools
+  │         └── Bedrock (Claude, Haiku, Nova)
+  │
+  └── Local (default)
+        → Strands Agent (Python, direct)
+            ├── create_agent() / create_team()
+            ├── Beads + AgentDB + GitNexus tools
+            └── Bedrock / Anthropic API / OpenAI
+```
+
+### Backends
+
+| Backend | Type | Use case |
+|---|---|---|
+| Strands Agents | Programmatic (Python SDK) | Default for local + cloud. Full TurboFlow features. |
+| Claude Code | CLI | Interactive terminal coding sessions |
+| Kiro CLI | CLI | AWS-native interactive coding |
+| Aider | CLI | Multi-model pair programming |
+| OpenHands | CLI/Docker | Open-source autonomous agent |
+
+---
+
+## Observability
+
+TurboFlow includes OpenTelemetry integration via Strands and cost tracking:
+
+```python
+from turboflow_adapter.strands import setup_telemetry, track_execution
+
+# Enable OTEL tracing
+setup_telemetry(console=True)  # dev
+setup_telemetry(otlp=True)     # production (CloudWatch, Jaeger)
+
+# Track execution with cost estimation
+with track_execution("coder", "implement login", "sonnet") as tracker:
+    result = agent("implement login")
+    tracker.record_result(result)
+print(tracker.metrics.summary())
+# [coder] implement login... | 1500ms | 5000 tokens | $0.0225 | ✓
+```
+
+---
+
+## Legacy CLI (Ruflo)
+
+The original Ruflo-based CLI still works alongside the new `tf` command:
+
+```bash
+rf-swarm              # Ruflo hierarchical swarm
+rf-spawn coder        # Spawn a Ruflo agent
+rf-doctor             # Ruflo health check
+turbo-status          # Full status check
+turbo-help            # Command reference
+```
+
+See [docs/01-release-notes-v4.md](docs/01-release-notes-v4.md) for the v4.0 Ruflo migration details.
+
+---
+
+## Project Structure
 
 ```
 turbo-flow/
-├── .devcontainer/               ← devcontainer config
-├── devpods/
-│   ├── bootstrap.sh             ← universal entry point
-│   ├── Taskfile.yml             ← idempotent setup tasks (replaces setup.sh)
-│   ├── devbox.json              ← optional Nix-based env
-│   ├── tmux-workspace.sh        ← tmux 4-pane layout
-│   ├── templates/               ← CLAUDE.md, aliases, statusline
-│   ├── context/                 ← agent context files
-│   └── scripts/                 ← K8s utilities
-├── docs/                        ← numbered documentation (01-12)
-│   └── es/                      ← Spanish translations (13-16)
-├── Dockerfile                   ← pre-baked container image
-├── docker-compose.yml           ← local Docker usage
-├── CLAUDE.md                    ← workspace context (active)
-└── README.md
+├── agent-adapter/               ← Agent Adapter (Phase 2)
+│   ├── python/                  ← Python adapter + Strands value layer
+│   │   ├── turboflow_adapter/   ← Core library
+│   │   │   ├── strands/         ← Agent types, teams, tools, memory, observability
+│   │   │   └── backends/        ← Claude, Aider, OpenHands, Strands, Kiro
+│   │   ├── tests/               ← 71 unit tests
+│   │   └── examples/            ← Runnable examples
+│   ├── ts/                      ← TypeScript adapter (CLI wrappers)
+│   └── shell-integration.sh     ← Shell functions (tf, agent-*)
+├── infra/                       ← AWS infrastructure (Phase 3)
+│   ├── agent-runtime/           ← AgentCore Runtime entry point
+│   └── turboflow_infra/         ← CDK stacks (Platform + Tenant)
+├── devpods/                     ← Setup & bootstrapping
+│   ├── Taskfile.yml             ← 10-step idempotent setup
+│   ├── bootstrap.sh             ← Universal entry point
+│   └── templates/               ← CLAUDE.md, aliases, statusline
+├── planning/                    ← Product plan, evaluations
+├── docs/                        ← User documentation
+├── Dockerfile                   ← Pre-baked container image
+└── docker-compose.yml           ← Local Docker usage
 ```
-
----
-
-## Post-Setup
-
-```bash
-# 1. Reload shell
-source ~/.bashrc
-
-# 2. Verify installation
-turbo-status
-
-# 3. Get help
-turbo-help
-
-# 4. Run post-setup verification
-# task verify  (from devpods/)
-```
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|:--------|:-----|:--------|
-| **v4.0.0** | Mar 2026 | **Ruflo Migration**: Ruflo v3.5, Beads, GitNexus, Worktrees, Agent Teams, 6 plugins, UI UX Pro Max, OpenSpec |
-| v3.4.1 | Feb 2025 | Fixes: skill install removed, plugins command, npm fallback |
-| v3.4.0 | Feb 2025 | Complete + Plugins: 36 skills, 15 plugins |
-| v3.3.0 | Feb 2025 | Complete installation: 41 skills, memory, MCP |
-| v3.0.0 | Feb 2025 | Initial release with Claude Flow V3 |
-
----
-
-## Resources
-
-| Resource | Link |
-|:---------|:-----|
-| Adventure Wave Labs | [GitHub: adventurewavelabs](https://github.com/adventurewavelabs) |
-| Turbo Flow | [GitHub: adventurewavelabs/turbo-flow](https://github.com/adventurewavelabs/turbo-flow) |
-| Ruflo | [GitHub: ruvnet/ruflo](https://github.com/ruvnet/ruflo) |
-| OpenSpec | [npm: @fission-ai/openspec](https://npmjs.com/package/@fission-ai/openspec) |
-| Agentic QE | [npm: agentic-qe](https://npmjs.com/package/agentic-qe) |
 
 ---
 
@@ -465,13 +367,4 @@ turbo-help
 
 MIT — Copyright (c) 2025-2026 Adventure Wave Labs
 
----
-
-<div align="center">
-
-**Built & Presented by Adventure Wave Labs**
-
-*Turbo Flow v4.0 — Ruflo v3.5. 215+ MCP tools. 6 plugins. Beads. GitNexus. Worktrees. One command.*
-
 </div>
-https://github.com/adventurewavelabs/turbo-flow/blob/main/AWLabs.png
