@@ -344,7 +344,7 @@ This phase reduces vendor risk and builds the foundation for all future work. Th
 - [ ] Strands Agents backend (TypeScript) — programmatic, native Bedrock, TypeScript SDK
 - [x] Strands + GitNexus integration — codebase intelligence as CLI tools + MCP client for Strands agents
 - [x] OTEL observability — Strands telemetry setup (console/OTLP), execution tracker, cost estimation per task
-- [ ] Evaluate Strands as full Ruflo replacement — document remaining gaps
+- [x] Evaluate Strands as full Ruflo replacement — documented in `planning/ruflo-strands-evaluation.md`
 - [ ] Document migration guide (Ruflo → Strands transition path)
 
 #### Dual-language adapter architecture
@@ -871,7 +871,7 @@ Path C (Strands as orchestrator) should be evaluated after gaining hands-on expe
 6. ~~Auto model routing~~ — **done** (`select_tier()` replaces Ruflo 3-tier routing)
 7. ~~Integrate Strands with GitNexus~~ — **done** (CLI tools + MCP client for full 7-tool access)
 8. ~~Add OTEL observability~~ — **done** (setup_telemetry for console/OTLP, track_execution context manager, cost estimation)
-9. **Evaluate Strands as full Ruflo replacement** — document remaining gaps, build migration guide
+9. ~~Evaluate Strands as full Ruflo replacement~~ — **done** (`planning/ruflo-strands-evaluation.md`). Core workflow covered; gaps in AgentDB, deep QE, hooks intelligence, neural training.
 10. Deploy 2-3 internal tenants on ECS to prove the model (Phase 3)
 11. Build control plane (tenant CRUD + IAM provisioning)
 12. Pilot with 1-2 external clients
