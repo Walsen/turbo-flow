@@ -29,46 +29,63 @@ Per-tenant unit of deployment: one Docker container with all tools pre-installed
 
 ```mermaid
 graph TB
-    subgraph CP["Control Plane"]
+    subgraph CP["Control Plane (API Gateway + Lambda)"]
         API["Tenant API\n(provision, configure, teardown)"]
         DASH["Dashboard\n(usage, agent monitor, repo mgmt)"]
         BILL["Billing\n(Bedrock + compute + storage)"]
-        IAM["IAM Provisioning\n(per-tenant roles + tags)"]
         SEC["Secrets Manager\n(API keys, git tokens)"]
-        CW["CloudWatch\n(metrics, alerts, logs)"]
     end
 
     CP --> TA & TB & TC
 
-    subgraph TA["Tenant A — ECS Fargate"]
-        TA_TF["TurboFlow Container"]
-        TA_R["Ruflo"] --- TA_B["Beads"] --- TA_G["GitNexus"] --- TA_AG["Agents"]
+    subgraph TA["Tenant A — AgentCore Runtime"]
+        TA_TF["Strands Agent (microVM)"]
+        TA_R["Agent Adapter"] --- TA_B["Beads"] --- TA_G["GitNexus"] --- TA_AG["Agent Teams"]
+        TA_MEM["AgentCore Memory\n(short-term + long-term)"]
+        TA_FS["/mnt/workspace\n(persistent filesystem)"]
     end
 
-    subgraph TB["Tenant B — ECS Fargate"]
-        TB_TF["TurboFlow Container"]
-        TB_R["Ruflo"] --- TB_B["Beads"] --- TB_G["GitNexus"] --- TB_AG["Agents"]
+    subgraph TB["Tenant B — AgentCore Runtime"]
+        TB_TF["Strands Agent (microVM)"]
+        TB_R["Agent Adapter"] --- TB_B["Beads"] --- TB_G["GitNexus"] --- TB_AG["Agent Teams"]
+        TB_MEM["AgentCore Memory"]
+        TB_FS["/mnt/workspace"]
     end
 
-    subgraph TC["Tenant C — ECS Fargate"]
-        TC_TF["TurboFlow Container"]
-        TC_R["Ruflo"] --- TC_B["Beads"] --- TC_G["GitNexus"] --- TC_AG["Agents"]
+    subgraph TC["Tenant C — AgentCore Runtime"]
+        TC_TF["Strands Agent (microVM)"]
+        TC_R["Agent Adapter"] --- TC_B["Beads"] --- TC_G["GitNexus"] --- TC_AG["Agent Teams"]
+        TC_MEM["AgentCore Memory"]
+        TC_FS["/mnt/workspace"]
     end
 
     TA & TB & TC --> BR
+    TA & TB & TC --> GW
+
+    subgraph GW["AgentCore Services"]
+        GATEWAY["Gateway\n(managed MCP servers)"]
+        IDENTITY["Identity\n(OAuth, Cognito, IAM)"]
+        POLICY["Policy\n(Cedar-based access control)"]
+        OBSERVE["Observability\n(OTEL → CloudWatch)"]
+    end
 
     subgraph BR["Amazon Bedrock"]
         MODELS["Claude Opus / Sonnet / Haiku\n+ Llama, Mistral, Nova"]
-        FEAT["Per-tenant IAM roles · Cost allocation tags\nProvisioned throughput · CloudWatch metrics"]
+        FEAT["Per-tenant IAM roles · Cost allocation tags\nConsumption-based pricing · Auto model routing"]
     end
 
     TA & TB & TC --> ST
 
     subgraph ST["Storage (per tenant)"]
-        EFS["EFS / EBS\nworkspace, Beads/Dolt, GitNexus"]
-        S3["S3\nartifacts, backups, exports"]
-        DDB["DynamoDB\ntenant metadata, sessions, billing"]
+        S3["S3\nworkspace, Beads, GitNexus, artifacts"]
+        DDB["DynamoDB\ntenant metadata, billing"]
     end
+
+    subgraph FALLBACK["Interactive Sessions (optional)"]
+        ECS["ECS Fargate + S3 Files\nKiro CLI / Claude Code CLI"]
+    end
+
+    CP --> FALLBACK
 ```
 
 ---
@@ -81,31 +98,32 @@ stateDiagram-v2
     Signup --> Provisioning: Control plane triggered
 
     state Provisioning {
-        [*] --> IAM: Create IAM role + cost tag
-        IAM --> EFS: Create EFS volume
-        EFS --> Secrets: Store git tokens in Secrets Manager
-        Secrets --> ECS: Create ECS task definition
-        ECS --> Boot: Start container
-        Boot --> [*]
+        [*] --> S3: Create S3 prefix + workspace
+        S3 --> Memory: Create AgentCore Memory
+        Memory --> Identity: Configure OAuth/Cognito
+        Identity --> Policy: Apply Cedar policies
+        Policy --> Gateway: Register MCP tools
+        Gateway --> Deploy: Deploy Strands agent to AgentCore Runtime
+        Deploy --> [*]
     }
 
-    Provisioning --> Active: First-boot complete
+    Provisioning --> Active: Agent ready (~30s)
 
     state Active {
-        [*] --> Running: Agents working
-        Running --> Idle: No activity (30 min)
-        Idle --> Running: Client reconnects
-        Idle --> Hibernated: No activity (24h)
-        Hibernated --> Running: Client reconnects
+        [*] --> Running: Agents working (microVM)
+        Running --> Idle: No activity (session stops)
+        Idle --> Running: Client reconnects (session resumes)
+        Idle --> Suspended: No activity (configurable)
+        Suspended --> Running: Client reconnects
     }
 
     Active --> Teardown: Client cancels or admin action
 
     state Teardown {
-        [*] --> StopECS: Stop ECS task
-        StopECS --> RetainEFS: Retain EFS 30 days
-        RetainEFS --> DeactivateIAM: Deactivate IAM role
-        DeactivateIAM --> Finalize: Finalize billing
+        [*] --> StopAgent: Stop AgentCore sessions
+        StopAgent --> RetainS3: Retain S3 data 30 days
+        RetainS3 --> CleanMemory: Delete AgentCore Memory
+        CleanMemory --> Finalize: Finalize billing
         Finalize --> [*]
     }
 
@@ -115,35 +133,38 @@ stateDiagram-v2
 ### Provisioning details
 
 1. Client signs up via dashboard or API
-2. Control plane creates:
-   - IAM role with Bedrock access + cost allocation tag `tenant=<id>`
-   - EFS volume for persistent workspace storage
-   - Secrets Manager entries for git tokens, custom env vars
-   - ECS task definition from the TurboFlow Docker image
-3. Container starts with:
-   ```bash
-   CLAUDE_CODE_USE_BEDROCK=1
-   AWS_REGION=us-east-1
-   AWS_BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-20250514
-   # IAM role assumed via ECS task role — no access keys needed
+2. Control plane provisions (automated via Step Functions, ~30 seconds):
+   - S3 prefix for tenant workspace (`s3://turboflow-tenants/{tenant-id}/`)
+   - AgentCore Memory instance (semantic + summarization + user preference strategies)
+   - AgentCore Identity configuration (OAuth/Cognito for the tenant)
+   - Cedar policy for tenant isolation (access only own S3 prefix, own memory)
+   - MCP tools registered in AgentCore Gateway (GitNexus, custom tools)
+   - Cost allocation tag `tenant=<id>` on all resources
+3. Strands agent deployed to AgentCore Runtime with:
+   ```python
+   # Agent configuration (per tenant)
+   model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-6")
+   memory = AgentCoreMemorySessionManager(memory_id=tenant_memory_id)
+   agent = Agent(model=model, tools=[...], session_manager=memory)
+   # Workspace at /mnt/workspace (persistent, S3-backed)
    ```
-4. First-boot entrypoint runs: Dolt identity, Beads init, MCP registration
-5. Client connects their GitHub/GitLab repos
-6. GitNexus indexes the repos → knowledge graph ready
+4. Client connects their GitHub/GitLab repos
+5. GitNexus indexes the repos → knowledge graph ready
 
 ### Runtime
 
-- Client interacts via Claude Code CLI (SSH/web terminal) or future web UI
-- Agents run through Ruflo → model calls go to Bedrock
-- Beads persists decisions to Dolt on EFS
-- GitNexus serves codebase intelligence via MCP
-- CloudWatch captures per-tenant metrics (tokens, cost, agent activity)
+- Client interacts via API, web UI, or optional Kiro CLI / Claude Code terminal
+- Strands agents run in AgentCore Runtime microVMs → model calls go to Bedrock
+- AgentCore Memory persists context across sessions (short-term + long-term)
+- Beads tracks decisions and work items (stored in S3 via persistent filesystem)
+- GitNexus serves codebase intelligence via AgentCore Gateway (managed MCP)
+- AgentCore Observability captures per-tenant OTEL traces, metrics, and logs → CloudWatch
 
 ### Teardown
 
-- Control plane stops ECS task
-- EFS volume retained for 30 days (configurable) then deleted
-- IAM role deactivated
+- Control plane stops all AgentCore sessions for the tenant
+- S3 data retained for 30 days (configurable via S3 Lifecycle) then deleted
+- AgentCore Memory deleted
 - Billing finalized
 
 ---
@@ -198,124 +219,6 @@ While Bedrock anchors the primary deployment on AWS, tenants could run on other 
 The Dockerfile and Taskfile are cloud-agnostic. Only the model routing env vars change per cloud.
 
 ---
-
-## Revenue Model
-
-### Pricing tiers
-
-| Tier | Price | Includes | Target |
-|---|---|---|---|
-| Starter | $99/dev/month | 1M tokens, 1 agent, 5GB storage, shared compute | Solo devs, evaluation |
-| Pro | $299/dev/month | 10M tokens, unlimited agents, 50GB storage, dedicated compute | Small teams |
-| Enterprise | Custom | Unlimited tokens, dedicated throughput, SSO, audit logs, SLA | Companies |
-
-### Cost structure (per tenant, estimated)
-
-| Component | Monthly cost | Notes |
-|---|---|---|
-| ECS Fargate (2 vCPU, 8GB) | ~$60 | Running 8h/day, 22 days/month |
-| EFS storage (10GB) | ~$3 | Beads, GitNexus, workspace |
-| Bedrock tokens (1M) | ~$15-30 | Depends on model mix (Haiku vs Sonnet vs Opus) |
-| Control plane share | ~$5 | Amortized across tenants |
-| **Total cost per tenant** | **~$85-100** | |
-| **Starter price** | **$99** | ~0-15% margin |
-| **Pro price** | **$299** | ~60-70% margin at 10M tokens |
-
-Margins improve with scale (shared control plane costs, reserved Bedrock capacity, Fargate Spot).
-
-### Phase 3 cost estimate (refined, April 2026)
-
-#### Build cost (one-time, 3-4 weeks of dev/test)
-
-| Component | Monthly during build | Notes |
-|---|---|---|
-| Dev/test ECS cluster (1 task) | ~$30 | 2 vCPU, 8GB, work hours only |
-| EFS (test volume) | ~$1 | Minimal storage |
-| Secrets Manager (2-3 secrets) | ~$1.20 | $0.40/secret/month |
-| CloudWatch (logs + metrics) | ~$5 | Low volume |
-| NAT Gateway or VPC endpoints | ~$21-32 | NAT: $32. VPC endpoints (Bedrock+ECR+S3): ~$21 |
-| Terraform state (S3 + DynamoDB) | ~$1 | Negligible |
-| **Total build phase** | **~$60-70** | One month of dev/test infra |
-
-#### Per-tenant operating cost (refined)
-
-| Component | Monthly per tenant | Notes |
-|---|---|---|
-| ECS Fargate (2 vCPU, 8GB) | $29-60 | On-demand: $60. Fargate Spot: ~$29 (50% savings) |
-| EFS (10GB) | $0.25-3 | Standard: $3. Infrequent Access: ~$0.25 |
-| Secrets Manager (3 secrets) | $1.20 | Git token, API keys, custom env |
-| CloudWatch logs | $2-5 | 5GB ingestion = ~$2.50 |
-| CloudWatch metrics | $0.30 | ~10 custom metrics |
-| Bedrock tokens (1M, mixed routing) | $5-20 | With Strands auto-routing: haiku for simple, sonnet for standard |
-| IAM role + cost tags | $0 | Free |
-| **Total per tenant** | **$38-89** | |
-
-#### Shared platform cost (fixed, amortized)
-
-| Component | Monthly | Notes |
-|---|---|---|
-| VPC + subnets | $0 | Free |
-| NAT Gateway or VPC endpoints | $21-32 | Amortized across all tenants |
-| ECR (container registry) | ~$1 | Image storage |
-| Terraform state | ~$1 | S3 + DynamoDB |
-| **Total shared** | **$23-34** | At 10 tenants: ~$3/tenant |
-
-#### Revised margin analysis
-
-| Tier | Price | Cost per tenant | Margin |
-|---|---|---|---|
-| Starter ($99/mo) | $99 | $38-55 (Spot + routing) | 44-61% |
-| Pro ($299/mo) | $299 | $60-100 (higher usage) | 67-80% |
-| Enterprise (custom) | $500+ | $100-200 | Negotiable |
-
-Margins improved vs original estimates due to: Fargate Spot (~50% compute savings), Strands auto model routing (haiku for simple tasks), EFS Infrequent Access tier.
-
----
-
-## Cost Analysis — Model Routing Impact
-
-TurboFlow's v1.x docs claimed 85-99% cost savings via multi-model routing. Here's how that maps to current Bedrock pricing:
-
-### Per-token costs (Bedrock, April 2026)
-
-| Model | Input | Output | Cache read | Cache write |
-|---|---|---|---|---|
-| Claude Opus 4.6 | $5/M | $25/M | $0.50/M | $6.25/M |
-| Claude Sonnet 4.6 | $3/M | $15/M | $0.30/M | $3.75/M |
-| Claude Haiku 4.5 | $0.80/M | $4/M | $0.08/M | $1/M |
-| Amazon Nova Pro | $0.80/M | $3.20/M | — | — |
-| Amazon Nova Lite | $0.06/M | $0.24/M | — | — |
-| Llama 3.x 70B | $0.72/M | $0.72/M | — | — |
-| Llama 3.x 8B | $0.22/M | $0.22/M | — | — |
-
-### Real-world cost per task (estimated, with caching)
-
-| Routing strategy | Models used | Cost per task | Monthly (100 tasks/day) |
-|---|---|---|---|
-| No routing (Sonnet only) | Sonnet 4.6 | ~$0.03-0.08 | $90-240 |
-| Ruflo 3-tier (current) | Opus + Sonnet + Haiku | ~$0.02-0.05 | $60-150 |
-| Bedrock mixed (proposed) | Sonnet + Haiku + Nova Lite | ~$0.005-0.02 | $15-60 |
-| Bedrock aggressive | Haiku + Nova Lite + Llama | ~$0.001-0.005 | $3-15 |
-
-### Comparison with subscription plans
-
-| Approach | Monthly cost (medium dev) | Per-tenant viable | Model flexibility |
-|---|---|---|---|
-| Claude Pro | $20 (fixed) | No | Claude only, rate limited |
-| Claude Max 5x | $100 (fixed) | No | Claude only |
-| Claude Max 20x | $200 (fixed) | No | Claude only |
-| Bedrock (Ruflo 3-tier) | $60-150 (variable) | Yes | Claude models |
-| Bedrock (mixed routing) | $15-60 (variable) | Yes | Claude + Nova + Llama |
-
-### Product pricing implications
-
-At Bedrock mixed routing ($15-60/tenant/month cost), the pricing tiers from the revenue model hold:
-
-- Starter ($99/mo): cost ~$30-40 → margin ~60%
-- Pro ($299/mo): cost ~$60-100 → margin ~65-80%
-- Enterprise (custom): cost ~$100-200 → margin negotiable
-
-The key lever is model routing. Ruflo's 3-tier routing already saves ~40% by using Haiku for simple tasks. Adding Nova Lite and Llama for boilerplate/formatting could push savings to 75-85%.
 
 ---
 
@@ -486,51 +389,6 @@ Interactive sessions → ECS Fargate + S3 Files (NFS mount)
 - [ ] Cost allocation tags on all resources (`tenant=<id>`)
 - [ ] Terraform/CDK module for tenant provisioning
 - [ ] Fallback: ECS Fargate + S3 Files for interactive Kiro CLI / Claude Code sessions
-
-#### Cost estimate (confirmed pricing from AWS docs)
-
-**AgentCore Runtime pricing** (per [AgentCore pricing page](https://aws.amazon.com/bedrock/agentcore/pricing/)):
-- CPU: $0.0895 per vCPU-hour (active consumption only — I/O wait is free)
-- Memory: $0.00945 per GB-hour (peak memory per second, 128MB minimum)
-- Gateway: $0.005 per 1,000 MCP invocations
-- Memory service: $0.25 per 1,000 short-term events; $0.75 per 1,000 long-term records/month (built-in strategies)
-- Identity: free when used through Runtime or Gateway
-- Observability: CloudWatch pricing
-
-**Per-tenant operating cost:**
-
-| Component | Monthly per tenant | Calculation |
-|---|---|---|
-| AgentCore Runtime (CPU) | $2-8 | 100 calls/day × 30s active CPU × 30 days = 25 vCPU-hours × $0.0895 |
-| AgentCore Runtime (Memory) | $1-3 | 2GB peak × 25 hours = 50 GB-hours × $0.00945 |
-| AgentCore Memory | $0.50-2 | 1K events ($0.25) + 500 records ($0.375) + 500 retrievals ($0.25) |
-| AgentCore Gateway | $0.05-0.50 | 10K MCP invocations × $0.005/1K |
-| S3 storage (10GB) | $0.23 | $0.023/GB-month |
-| Bedrock tokens (1M, mixed routing) | $5-20 | Haiku for simple, Sonnet for standard |
-| CloudWatch | $2-5 | Logs + metrics + traces |
-| Secrets Manager | $1.20 | 3 secrets |
-| **Total per tenant** | **$12-40** | |
-
-**Idle tenant cost: ~$0.50/month** (S3 storage + Secrets Manager only — no compute, no memory charges)
-
-**Comparison across all architectures:**
-
-| | ECS Fargate (original) | AgentCore (previous estimate) | AgentCore (confirmed pricing) |
-|---|---|---|---|
-| Per tenant/month | $38-89 | $13-47 | $12-40 |
-| Idle tenant/month | $29-60 | ~$1 | ~$0.50 |
-| Starter margin ($99) | 44-61% | 52-87% | 60-88% |
-| Pro margin ($299) | 67-80% | 84-96% | 87-96% |
-
-**Build cost (one-time, 3-4 weeks):**
-
-| Component | Monthly during build | Notes |
-|---|---|---|
-| AgentCore Runtime (dev/test) | ~$5 | Low usage during development |
-| S3 (test data) | ~$1 | Minimal |
-| Bedrock (test calls) | ~$10 | Testing with Haiku |
-| CloudWatch | ~$3 | Dev logs |
-| **Total build phase** | **~$20** | Significantly cheaper than Fargate dev/test ($60-70) |
 
 ### Phase 4: Control plane API (4-6 weeks)
 
@@ -1004,6 +862,95 @@ This is the 40% that no competitor has — and it works with any agent backend.
 Start with Path A (Bedrock) — already in progress. Move immediately to Path B (Agent Adapter + Strands backend) as the primary development focus. Path B is the highest-leverage work: it reduces vendor risk, adds a programmatic agent option, and lays the groundwork for Path C. Infrastructure (tenant isolation, control plane) comes after the agent layer is provider-independent.
 
 Path C (Strands as orchestrator) should be evaluated after gaining hands-on experience with Strands through Path B. The portable components (Beads, GitNexus, infra) are the strategic assets — they're unique, provider-independent, and defensible regardless of which orchestration layer is used.
+
+---
+
+## Business Model & Cost Analysis
+
+### Pricing tiers
+
+| Tier | Price | Includes | Target |
+|---|---|---|---|
+| Starter | $99/dev/month | 1M tokens, 1 agent, 5GB storage | Solo devs, evaluation |
+| Pro | $299/dev/month | 10M tokens, unlimited agents, 50GB storage | Small teams |
+| Enterprise | Custom | Unlimited tokens, dedicated throughput, SSO, audit logs, SLA | Companies |
+
+### Per-tenant operating cost (AgentCore, confirmed pricing)
+
+Based on confirmed AWS pricing (April 2026) from [AgentCore pricing page](https://aws.amazon.com/bedrock/agentcore/pricing/):
+
+**AgentCore Runtime rates:**
+- CPU: $0.0895 per vCPU-hour (active consumption only — I/O wait is free)
+- Memory: $0.00945 per GB-hour (peak memory per second, 128MB minimum)
+- Gateway: $0.005 per 1,000 MCP invocations
+- Memory service: $0.25 per 1,000 short-term events; $0.75 per 1,000 long-term records/month
+- Identity: free when used through Runtime or Gateway
+- Observability: CloudWatch pricing
+
+| Component | Monthly per tenant | Calculation |
+|---|---|---|
+| AgentCore Runtime (CPU) | $2-8 | 100 calls/day × 30s active CPU × 30 days = 25 vCPU-hours × $0.0895 |
+| AgentCore Runtime (Memory) | $1-3 | 2GB peak × 25 hours = 50 GB-hours × $0.00945 |
+| AgentCore Memory | $0.50-2 | 1K events ($0.25) + 500 records ($0.375) + 500 retrievals ($0.25) |
+| AgentCore Gateway | $0.05-0.50 | 10K MCP invocations × $0.005/1K |
+| S3 storage (10GB) | $0.23 | $0.023/GB-month |
+| Bedrock tokens (1M, mixed routing) | $5-20 | Haiku for simple, Sonnet for standard |
+| CloudWatch | $2-5 | Logs + metrics + traces |
+| Secrets Manager | $1.20 | 3 secrets |
+| **Total per tenant** | **$12-40** | |
+
+**Idle tenant cost: ~$0.50/month** (S3 storage + Secrets Manager only)
+
+### Build cost (one-time, Phase 3)
+
+| Component | Monthly during build | Notes |
+|---|---|---|
+| AgentCore Runtime (dev/test) | ~$5 | Low usage during development |
+| S3 (test data) | ~$1 | Minimal |
+| Bedrock (test calls) | ~$10 | Testing with Haiku |
+| CloudWatch | ~$3 | Dev logs |
+| **Total build phase** | **~$20** | 3-4 weeks |
+
+### Margin analysis
+
+| Tier | Price | Cost per tenant | Margin |
+|---|---|---|---|
+| Starter ($99/mo) | $99 | $12-40 | 60-88% |
+| Pro ($299/mo) | $299 | $20-80 | 73-93% |
+| Enterprise (custom) | $500+ | $50-200 | Negotiable |
+
+### Model routing cost impact
+
+Per-token costs (Bedrock, April 2026):
+
+| Model | Input | Output |
+|---|---|---|
+| Claude Opus 4.6 | $5/M | $25/M |
+| Claude Sonnet 4.6 | $3/M | $15/M |
+| Claude Haiku 4.5 | $0.80/M | $4/M |
+| Amazon Nova Pro | $0.80/M | $3.20/M |
+| Amazon Nova Lite | $0.06/M | $0.24/M |
+
+Cost per task with different routing strategies:
+
+| Strategy | Models used | Cost per task | Monthly (100 tasks/day) |
+|---|---|---|---|
+| No routing (Sonnet only) | Sonnet 4.6 | ~$0.03-0.08 | $90-240 |
+| Strands auto-routing | Opus + Sonnet + Haiku | ~$0.02-0.05 | $60-150 |
+| Mixed routing | Sonnet + Haiku + Nova Lite | ~$0.005-0.02 | $15-60 |
+| Aggressive routing | Haiku + Nova Lite + Llama | ~$0.001-0.005 | $3-15 |
+
+The key lever is model routing. TurboFlow's `select_tier()` auto-routes to haiku for simple tasks, saving ~40-75% on Bedrock costs. Adding Nova Lite for boilerplate pushes savings to 75-85%.
+
+### Architecture cost evolution
+
+| | ECS Fargate (original plan) | AgentCore (current plan) |
+|---|---|---|
+| Per tenant/month | $38-89 | $12-40 |
+| Idle tenant/month | $29-60 | $0.50 |
+| Build phase cost | $60-70 | ~$20 |
+| Starter margin | 0-61% | 60-88% |
+| Pro margin | 67-80% | 73-93% |
 
 ---
 
