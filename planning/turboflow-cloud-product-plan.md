@@ -342,7 +342,7 @@ This phase reduces vendor risk and builds the foundation for all future work. Th
   - [x] 8 TurboFlow-specific Strands tools (4 Beads + 4 file ops) — agents auto-check memory and track work
   - [x] 4 multi-agent team recipes using supervisor-agent pattern (feature, bug-fix, code-review, security-audit) — replaces `rf-swarm`
 - [ ] Strands Agents backend (TypeScript) — programmatic, native Bedrock, TypeScript SDK
-- [ ] Strands + GitNexus integration — codebase intelligence as MCP tool for Strands agents
+- [x] Strands + GitNexus integration — codebase intelligence as CLI tools + MCP client for Strands agents
 - [ ] OTEL observability — pipe Strands traces to CloudWatch / Statusline
 - [ ] Evaluate Strands as full Ruflo replacement — document remaining gaps
 - [ ] Document migration guide (Ruflo → Strands transition path)
@@ -869,7 +869,7 @@ Path C (Strands as orchestrator) should be evaluated after gaining hands-on expe
 4. ~~Build Strands multi-agent patterns~~ — **done** (4 team recipes: feature, bug-fix, code-review, security-audit)
 5. ~~Integrate Strands with Beads~~ — **done** (4 Beads tools built into every agent)
 6. ~~Auto model routing~~ — **done** (`select_tier()` replaces Ruflo 3-tier routing)
-7. **Integrate Strands with GitNexus** — codebase intelligence as MCP tool for Strands agents
+7. ~~Integrate Strands with GitNexus~~ — **done** (CLI tools + MCP client for full 7-tool access)
 8. **Add OTEL observability** — pipe Strands traces to CloudWatch / Statusline
 9. **Evaluate Strands as full Ruflo replacement** — document remaining gaps, build migration guide
 10. Deploy 2-3 internal tenants on ECS to prove the model (Phase 3)

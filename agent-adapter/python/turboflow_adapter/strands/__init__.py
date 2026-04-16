@@ -4,6 +4,7 @@ from turboflow_adapter.strands.agents import create_agent, AgentType
 from turboflow_adapter.strands.team import create_team, TeamRecipe
 from turboflow_adapter.strands.models import create_model, select_tier
 from turboflow_adapter.strands.tools import beads_tools, file_tools
+from turboflow_adapter.strands.gitnexus import gitnexus_tools, gitnexus_cli_tools
 
 __all__ = [
     "create_agent",
@@ -14,4 +15,6 @@ __all__ = [
     "select_tier",
     "beads_tools",
     "file_tools",
+    "gitnexus_tools",
+    "gitnexus_cli_tools",
 ]

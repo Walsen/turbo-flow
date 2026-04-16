@@ -189,5 +189,7 @@ def file_tools() -> list:
 
 
 def all_tools() -> list:
-    """Get all TurboFlow tools."""
-    return beads_tools() + file_tools()
+    """Get all TurboFlow tools (Beads + file ops + GitNexus CLI)."""
+    from turboflow_adapter.strands.gitnexus import gitnexus_cli_tools
+
+    return beads_tools() + file_tools() + gitnexus_cli_tools()
