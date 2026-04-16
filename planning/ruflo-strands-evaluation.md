@@ -75,15 +75,15 @@ Assessment of replacing Ruflo v3.5 with Strands Agents as TurboFlow's orchestrat
 
 ### Gaps that need work before full replacement
 
-| Gap | Impact | Effort to build | Priority |
-|---|---|---|---|
-| AgentDB / vector memory | Medium — semantic search for patterns | Medium — need a vector store (pgvector, ChromaDB, or Bedrock Knowledge Bases) | P2 |
-| Agentic QE depth | Medium — only review + security today, missing TDD gen, coverage, chaos | Medium — add more team recipes and specialist tools | P2 |
-| Hooks intelligence | Low — pre/post edit analysis is nice-to-have | Low — wrap as Strands tools | P3 |
-| Neural training | Low — pattern learning from past runs | Medium — needs execution history storage | P3 |
-| Perf optimizer | Low — profiling and bottleneck detection | Medium — needs runtime instrumentation | P3 |
-| Browser automation | Low — only needed for web testing | Low — available via MCP servers | P3 |
-| Git worktree tools | Low — shell aliases work, just not Strands-native | Low — wrap existing shell functions | P3 |
+| Gap | Impact | Effort to build | Priority | Status |
+|---|---|---|---|---|
+| AgentDB / vector memory | Medium | Medium | P2 | ✅ Built — SQLite + Bedrock Titan Embeddings, 3 tools (remember, recall, stats) |
+| Agentic QE depth | Medium | Medium | P2 | ✅ Built — 3 new recipes: TDD, coverage-analysis, qa-gate |
+| Hooks intelligence | Low | Low | P3 | Not started |
+| Neural training | Low | Medium | P3 | Not started |
+| Perf optimizer | Low | Medium | P3 | Not started |
+| Browser automation | Low | Low | P3 | Not started |
+| Git worktree tools | Low | Low | P3 | Not started |
 
 ### Recommendation
 
