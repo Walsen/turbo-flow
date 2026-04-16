@@ -55,8 +55,14 @@ jobs:
             --skip-python-setup \
             --output-dir /tmp/agentcore-deploy
 
-      - name: Copy agent code
-        run: cp main.py /tmp/agentcore-deploy/turboflowdemo/app/turboflowdemo/main.py
+      - name: Build deployment package
+        run: bash infra/agent-runtime/build.sh
+        working-directory: ${{ github.workspace }}
+
+      - name: Copy agent code with turboflow_adapter
+        run: |
+          cp -r infra/agent-runtime/build/* /tmp/agentcore-deploy/turboflowdemo/app/turboflowdemo/
+        working-directory: ${{ github.workspace }}
 
       - name: Configure deployment target
         run: |

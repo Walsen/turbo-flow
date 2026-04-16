@@ -44,7 +44,13 @@ def _has_cloud() -> bool:
     return bool(_RUNTIME_ARN)
 
 
-def _invoke_cloud(prompt: str, model: str | None = None, runtime_arn: str | None = None) -> None:
+def _invoke_cloud(
+    prompt: str,
+    model: str | None = None,
+    runtime_arn: str | None = None,
+    agent_type: str | None = None,
+    team: str | None = None,
+) -> None:
     """Invoke the deployed agent on AgentCore."""
     import boto3
 
@@ -52,6 +58,10 @@ def _invoke_cloud(prompt: str, model: str | None = None, runtime_arn: str | None
     payload: dict = {"prompt": prompt}
     if model:
         payload["model"] = _MODEL_MAP.get(model, model)
+    if agent_type:
+        payload["agent_type"] = agent_type
+    if team:
+        payload["team"] = team
 
     client = boto3.client("bedrock-agentcore", region_name=_REGION)
     response = client.invoke_agent_runtime(
@@ -109,6 +119,16 @@ def _invoke_local(
 @click.argument("prompt", required=False)
 @click.option("-m", "--model", help="Model: haiku, sonnet, opus (or backend-specific)")
 @click.option("-b", "--backend", help="Local backend: strands, claude, aider, openhands, kiro")
+@click.option(
+    "-a",
+    "--agent",
+    "agent_type",
+    help="Agent type: coder, tester, reviewer, system-architect, researcher, security-architect",
+)
+@click.option(
+    "--team",
+    help="Team recipe: feature, bug-fix, code-review, security-audit, qa-gate, tdd, full-build",
+)
 @click.option("-f", "--file", "files", multiple=True, help="Target file(s)")
 @click.option("-s", "--system-prompt", help="System prompt override")
 @click.option("-t", "--timeout", type=float, help="Timeout in seconds")
@@ -122,6 +142,8 @@ def main(
     prompt,
     model,
     backend,
+    agent_type,
+    team,
     files,
     system_prompt,
     timeout,
@@ -137,14 +159,15 @@ def main(
         click.echo('Usage: tf "your prompt"')
         click.echo("")
         click.echo("Options:")
-        click.echo('  tf "prompt"                  auto (cloud if deployed, local otherwise)')
-        click.echo('  tf --cloud "prompt"           force cloud (AgentCore)')
-        click.echo('  tf --local "prompt"           force local (Strands)')
-        click.echo('  tf --local -b aider "prompt"  specific local backend')
-        click.echo('  tf -m sonnet "prompt"         model override')
-        click.echo("  tf status                     show status")
-        click.echo("  tf health                     health check")
-        click.echo("  tf backends                   list backends")
+        click.echo('  tf "prompt"                          auto (cloud or local)')
+        click.echo('  tf -a reviewer "prompt"              specific agent type')
+        click.echo('  tf --team feature "prompt"           multi-agent team')
+        click.echo('  tf --cloud "prompt"                  force cloud (AgentCore)')
+        click.echo('  tf --local "prompt"                  force local (Strands)')
+        click.echo('  tf --local -b aider "prompt"         specific local backend')
+        click.echo('  tf -m sonnet "prompt"                model override')
+        click.echo("  tf status                            show status")
+        click.echo("  tf backends                          list backends")
         return
 
     try:
@@ -156,12 +179,12 @@ def main(
                     err=True,
                 )
                 sys.exit(1)
-            _invoke_cloud(prompt, model, arn)
+            _invoke_cloud(prompt, model, arn, agent_type=agent_type, team=team)
         elif force_local or backend:
             _invoke_local(prompt, backend, model, files, system_prompt, timeout)
         elif _has_cloud():
             # Auto: cloud if deployed
-            _invoke_cloud(prompt, model, runtime_arn)
+            _invoke_cloud(prompt, model, runtime_arn, agent_type=agent_type, team=team)
         else:
             # Auto: local fallback
             _invoke_local(prompt, backend, model, files, system_prompt, timeout)
