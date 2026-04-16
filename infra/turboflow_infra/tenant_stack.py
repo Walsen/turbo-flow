@@ -5,6 +5,7 @@ Creates for each tenant:
 - AgentCore Runtime (Strands agent deployment)
 - AgentCore Memory (short-term + long-term with semantic, summarization, user preference)
 - AgentCore Gateway (managed MCP server for tenant tools)
+- AgentCore Policy Engine + Cedar policy (tenant isolation)
 - S3 prefix isolation (IAM policy scoped to tenant prefix)
 - Cost allocation tags
 - CloudWatch log group
@@ -17,6 +18,7 @@ from aws_cdk import (
     Tags,
     RemovalPolicy,
     CfnOutput,
+    aws_bedrockagentcore as cfn_agentcore,  # noqa: F401 — reserved for Policy when CFN stabilizes
     aws_iam as iam,
     aws_logs as logs,
     aws_s3 as s3,
@@ -87,6 +89,13 @@ class TenantStack(Stack):
             description=f"TurboFlow MCP gateway for tenant {tenant_name}",
             tags={"tenant": tenant_id, "tenant_plan": tenant_plan},
         )
+
+        # ── AgentCore Policy Engine + Cedar Policy ────────────────────────
+        # Tenant isolation via Cedar policies.
+        # NOTE: AgentCore Policy via CloudFormation has stabilization issues
+        # as of April 2026. Policy will be applied via AgentCore CLI or API
+        # during tenant provisioning until CFN support stabilizes.
+        # See: planning/turboflow-cloud-product-plan.md Phase 3 notes.
 
         # ── AgentCore Runtime ────────────────────────────────────────────
         artifact = agentcore.AgentRuntimeArtifact.from_s3(
