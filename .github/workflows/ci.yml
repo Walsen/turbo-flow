@@ -111,10 +111,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if Docker-relevant files changed
+        id: changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "force-build")
+          if echo "$CHANGED" | grep -qvE '^\.(md|txt)$|^docs/|^planning/|^README|^LICENSE|^SECURITY|^CLAUDE|^\.envrc|^agent-adapter/.*USE_CASES'; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping Docker build — only docs/config changed"
+          fi
+
       - name: Build image
+        if: steps.changes.outputs.build == 'true'
         run: docker build -t turbo-flow:test .
 
       - name: Smoke test — container starts
+        if: steps.changes.outputs.build == 'true'
         run: |
           docker run --rm -d --name tf-smoke turbo-flow:test sleep 30
           sleep 3
