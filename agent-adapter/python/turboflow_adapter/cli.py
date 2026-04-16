@@ -1,8 +1,23 @@
-"""CLI entry point for the Agent Adapter."""
+"""
+TurboFlow unified CLI.
+
+Usage:
+    tf "Write a fibonacci function"              # auto: cloud if deployed, local otherwise
+    tf --cloud "prompt"                          # force cloud (AgentCore)
+    tf --local "prompt"                          # force local (Strands)
+    tf --local --backend aider "prompt"          # specific local backend
+    tf --model sonnet "prompt"                   # model override
+    tf status                                    # show local + cloud status
+    tf health                                    # health check
+    tf backends                                  # list local backends
+    tf mcp list                                  # MCP servers
+"""
 
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 import sys
 
 import click
@@ -10,30 +25,63 @@ import click
 from turboflow_adapter.adapter import AgentAdapter
 from turboflow_adapter.types import ExecOptions
 
+_RUNTIME_ARN = os.environ.get("TURBOFLOW_RUNTIME_ARN", "")
+_REGION = os.environ.get("AWS_REGION", "us-east-1")
 
-def _run(coro):
+_MODEL_MAP = {
+    "opus": "us.anthropic.claude-opus-4-6-v1",
+    "sonnet": "us.anthropic.claude-sonnet-4-6",
+    "haiku": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+}
+
+
+def _run(coro):  # type: ignore
     """Run an async function synchronously."""
     return asyncio.run(coro)
 
 
-@click.group()
-@click.version_option(version="0.1.0")
-def main():
-    """TurboFlow Agent Adapter — provider-independent agent CLI abstraction."""
-    pass
+def _has_cloud() -> bool:
+    return bool(_RUNTIME_ARN)
 
 
-@main.command()
-@click.argument("prompt")
-@click.option("-f", "--file", "files", multiple=True, help="Target file(s)")
-@click.option("-m", "--model", help="Model override (opus/sonnet/haiku or backend-specific)")
-@click.option("--headless", is_flag=True, help="Non-interactive mode")
-@click.option("--print", "print_only", is_flag=True, help="Print-only mode")
-@click.option("-b", "--backend", help="Override backend for this command")
-@click.option("-t", "--timeout", type=float, help="Timeout in seconds")
-@click.option("-s", "--system-prompt", help="System prompt override")
-def exec(prompt, files, model, headless, print_only, backend, timeout, system_prompt):
-    """Execute a prompt through the active agent backend."""
+def _invoke_cloud(prompt: str, model: str | None = None, runtime_arn: str | None = None) -> None:
+    """Invoke the deployed agent on AgentCore."""
+    import boto3
+
+    arn = runtime_arn or _RUNTIME_ARN
+    payload: dict = {"prompt": prompt}
+    if model:
+        payload["model"] = _MODEL_MAP.get(model, model)
+
+    client = boto3.client("bedrock-agentcore", region_name=_REGION)
+    response = client.invoke_agent_runtime(
+        agentRuntimeArn=arn,
+        payload=json.dumps(payload).encode(),
+    )
+    output = b""
+    for chunk in response.get("response", []):
+        if isinstance(chunk, bytes):
+            output += chunk
+    text = output.decode()
+    for line in text.splitlines():
+        if line.startswith("data: "):
+            data = line[6:].strip()
+            if data and data != "[DONE]":
+                if data.startswith('"') and data.endswith('"'):
+                    data = json.loads(data)
+                click.echo(data, nl=False)
+    click.echo()
+
+
+def _invoke_local(
+    prompt: str,
+    backend: str | None = None,
+    model: str | None = None,
+    files: tuple = (),
+    system_prompt: str | None = None,
+    timeout: float | None = None,
+) -> None:
+    """Invoke a local agent backend."""
     adapter = AgentAdapter(backend)
     result = _run(
         adapter.exec(
@@ -41,10 +89,9 @@ def exec(prompt, files, model, headless, print_only, backend, timeout, system_pr
             ExecOptions(
                 files=list(files) if files else None,
                 model=model,
-                headless=headless,
-                print_only=print_only,
-                timeout=timeout,
+                headless=True,
                 system_prompt=system_prompt,
+                timeout=timeout,
             ),
         )
     )
@@ -55,33 +102,109 @@ def exec(prompt, files, model, headless, print_only, backend, timeout, system_pr
     sys.exit(result.exit_code)
 
 
+# ── Main command ─────────────────────────────────────────────────────────
+
+
+@click.group(invoke_without_command=True)
+@click.argument("prompt", required=False)
+@click.option("-m", "--model", help="Model: haiku, sonnet, opus (or backend-specific)")
+@click.option("-b", "--backend", help="Local backend: strands, claude, aider, openhands, kiro")
+@click.option("-f", "--file", "files", multiple=True, help="Target file(s)")
+@click.option("-s", "--system-prompt", help="System prompt override")
+@click.option("-t", "--timeout", type=float, help="Timeout in seconds")
+@click.option("--cloud", "force_cloud", is_flag=True, help="Force cloud execution (AgentCore)")
+@click.option("--local", "force_local", is_flag=True, help="Force local execution")
+@click.option("-r", "--runtime-arn", help="AgentCore Runtime ARN override")
+@click.version_option(version="0.1.0")
+@click.pass_context
+def main(
+    ctx,
+    prompt,
+    model,
+    backend,
+    files,
+    system_prompt,
+    timeout,
+    force_cloud,
+    force_local,
+    runtime_arn,
+):
+    """TurboFlow — invoke AI agents locally or in the cloud."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    if not prompt:
+        click.echo('Usage: tf "your prompt"')
+        click.echo("")
+        click.echo("Options:")
+        click.echo('  tf "prompt"                  auto (cloud if deployed, local otherwise)')
+        click.echo('  tf --cloud "prompt"           force cloud (AgentCore)')
+        click.echo('  tf --local "prompt"           force local (Strands)')
+        click.echo('  tf --local -b aider "prompt"  specific local backend')
+        click.echo('  tf -m sonnet "prompt"         model override')
+        click.echo("  tf status                     show status")
+        click.echo("  tf health                     health check")
+        click.echo("  tf backends                   list backends")
+        return
+
+    try:
+        if force_cloud:
+            arn = runtime_arn or _RUNTIME_ARN
+            if not arn:
+                click.echo(
+                    "Error: No runtime ARN. Set TURBOFLOW_RUNTIME_ARN or use --runtime-arn",
+                    err=True,
+                )
+                sys.exit(1)
+            _invoke_cloud(prompt, model, arn)
+        elif force_local or backend:
+            _invoke_local(prompt, backend, model, files, system_prompt, timeout)
+        elif _has_cloud():
+            # Auto: cloud if deployed
+            _invoke_cloud(prompt, model, runtime_arn)
+        else:
+            # Auto: local fallback
+            _invoke_local(prompt, backend, model, files, system_prompt, timeout)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+# ── Status ───────────────────────────────────────────────────────────────
+
+
 @main.command()
 def status():
-    """Show status of all agent backends."""
+    """Show local backends + cloud deployment status."""
+    # Local backends
     adapter = AgentAdapter()
     statuses = _run(adapter.status())
 
     click.echo("╔══════════════════════════════════════════╗")
-    click.echo("║   TurboFlow Agent Adapter Status          ║")
+    click.echo("║         TurboFlow Status                  ║")
     click.echo("╚══════════════════════════════════════════╝")
     click.echo()
-
+    click.echo("Local backends:")
     for s in statuses:
         active = " (active)" if s.active else ""
         icon = "✓" if s.installed else "✗"
         ver = f" — {s.version}" if s.version else ""
         click.echo(f"  {icon} {s.name}{active}{ver}")
-        click.echo(f"    {s.description}")
 
-        caps = [k for k, v in vars(s.capabilities).items() if v]
-        click.echo(f"    Capabilities: {', '.join(caps)}")
-        click.echo()
+    # Cloud
+    click.echo()
+    click.echo("Cloud (AgentCore):")
+    if _has_cloud():
+        click.echo(f"  ✓ Deployed: {_RUNTIME_ARN}")
+        click.echo(f"    Region: {_REGION}")
+    else:
+        click.echo("  ✗ Not configured (set TURBOFLOW_RUNTIME_ARN)")
 
 
 @main.command()
 @click.option("-b", "--backend", help="Check a specific backend")
 def health(backend):
-    """Run health check on the active backend."""
+    """Run health check on a backend."""
     adapter = AgentAdapter(backend)
     h = _run(adapter.health_check())
 
@@ -94,7 +217,6 @@ def health(backend):
         click.echo("Details:")
         for k, v in h.details.items():
             click.echo(f"  {k}: {v}")
-
     if h.warnings:
         click.echo("Warnings:")
         for w in h.warnings:
@@ -102,22 +224,20 @@ def health(backend):
 
 
 @main.command()
-@click.argument("backend_id")
-def switch(backend_id):
-    """Switch the active agent backend."""
-    adapter = AgentAdapter()
-    try:
-        _run(adapter.switch_backend(backend_id))
-        click.echo(f"✓ Switched to {backend_id}")
-    except Exception as e:
-        click.echo(f"✗ {e}", err=True)
-        sys.exit(1)
+def backends():
+    """List all registered local backends."""
+    from turboflow_adapter.registry import registry
+
+    for b in registry.list_all():
+        click.echo(f"{b.id} — {b.name} ({b.license})")
+        click.echo(f"  {b.description}")
+        click.echo()
 
 
 @main.command()
 @click.argument("backend_id")
 def install(backend_id):
-    """Install an agent backend."""
+    """Install a local agent backend."""
     from turboflow_adapter.registry import registry
 
     backend = registry.get(backend_id)
@@ -129,28 +249,16 @@ def install(backend_id):
         sys.exit(1)
 
 
-@main.command()
-def backends():
-    """List all registered backends."""
-    from turboflow_adapter.registry import registry
-
-    for b in registry.list_all():
-        click.echo(f"{b.id} — {b.name} ({b.license})")
-        click.echo(f"  {b.description}")
-        click.echo(f"  {b.url}")
-        click.echo()
-
-
 @main.command("resolve-model")
 @click.argument("model")
 @click.option("-b", "--backend", help="Backend to resolve for")
 def resolve_model(model, backend):
-    """Resolve a model tier name to a backend-specific model string."""
+    """Resolve a model tier name to a backend-specific string."""
     adapter = AgentAdapter(backend)
     click.echo(adapter.resolve_model(model))
 
 
-# ── MCP subcommands ──────────────────────────────────────────────────────
+# ── MCP ──────────────────────────────────────────────────────────────────
 
 
 @main.group()
