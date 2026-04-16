@@ -29,46 +29,63 @@ Per-tenant unit of deployment: one Docker container with all tools pre-installed
 
 ```mermaid
 graph TB
-    subgraph CP["Control Plane"]
+    subgraph CP["Control Plane (API Gateway + Lambda)"]
         API["Tenant API\n(provision, configure, teardown)"]
         DASH["Dashboard\n(usage, agent monitor, repo mgmt)"]
         BILL["Billing\n(Bedrock + compute + storage)"]
-        IAM["IAM Provisioning\n(per-tenant roles + tags)"]
         SEC["Secrets Manager\n(API keys, git tokens)"]
-        CW["CloudWatch\n(metrics, alerts, logs)"]
     end
 
     CP --> TA & TB & TC
 
-    subgraph TA["Tenant A — ECS Fargate"]
-        TA_TF["TurboFlow Container"]
-        TA_R["Ruflo"] --- TA_B["Beads"] --- TA_G["GitNexus"] --- TA_AG["Agents"]
+    subgraph TA["Tenant A — AgentCore Runtime"]
+        TA_TF["Strands Agent (microVM)"]
+        TA_R["Agent Adapter"] --- TA_B["Beads"] --- TA_G["GitNexus"] --- TA_AG["Agent Teams"]
+        TA_MEM["AgentCore Memory\n(short-term + long-term)"]
+        TA_FS["/mnt/workspace\n(persistent filesystem)"]
     end
 
-    subgraph TB["Tenant B — ECS Fargate"]
-        TB_TF["TurboFlow Container"]
-        TB_R["Ruflo"] --- TB_B["Beads"] --- TB_G["GitNexus"] --- TB_AG["Agents"]
+    subgraph TB["Tenant B — AgentCore Runtime"]
+        TB_TF["Strands Agent (microVM)"]
+        TB_R["Agent Adapter"] --- TB_B["Beads"] --- TB_G["GitNexus"] --- TB_AG["Agent Teams"]
+        TB_MEM["AgentCore Memory"]
+        TB_FS["/mnt/workspace"]
     end
 
-    subgraph TC["Tenant C — ECS Fargate"]
-        TC_TF["TurboFlow Container"]
-        TC_R["Ruflo"] --- TC_B["Beads"] --- TC_G["GitNexus"] --- TC_AG["Agents"]
+    subgraph TC["Tenant C — AgentCore Runtime"]
+        TC_TF["Strands Agent (microVM)"]
+        TC_R["Agent Adapter"] --- TC_B["Beads"] --- TC_G["GitNexus"] --- TC_AG["Agent Teams"]
+        TC_MEM["AgentCore Memory"]
+        TC_FS["/mnt/workspace"]
     end
 
     TA & TB & TC --> BR
+    TA & TB & TC --> GW
+
+    subgraph GW["AgentCore Services"]
+        GATEWAY["Gateway\n(managed MCP servers)"]
+        IDENTITY["Identity\n(OAuth, Cognito, IAM)"]
+        POLICY["Policy\n(Cedar-based access control)"]
+        OBSERVE["Observability\n(OTEL → CloudWatch)"]
+    end
 
     subgraph BR["Amazon Bedrock"]
         MODELS["Claude Opus / Sonnet / Haiku\n+ Llama, Mistral, Nova"]
-        FEAT["Per-tenant IAM roles · Cost allocation tags\nProvisioned throughput · CloudWatch metrics"]
+        FEAT["Per-tenant IAM roles · Cost allocation tags\nConsumption-based pricing · Auto model routing"]
     end
 
     TA & TB & TC --> ST
 
     subgraph ST["Storage (per tenant)"]
-        EFS["EFS / EBS\nworkspace, Beads/Dolt, GitNexus"]
-        S3["S3\nartifacts, backups, exports"]
-        DDB["DynamoDB\ntenant metadata, sessions, billing"]
+        S3["S3\nworkspace, Beads, GitNexus, artifacts"]
+        DDB["DynamoDB\ntenant metadata, billing"]
     end
+
+    subgraph FALLBACK["Interactive Sessions (optional)"]
+        ECS["ECS Fargate + S3 Files\nKiro CLI / Claude Code CLI"]
+    end
+
+    CP --> FALLBACK
 ```
 
 ---
@@ -81,31 +98,32 @@ stateDiagram-v2
     Signup --> Provisioning: Control plane triggered
 
     state Provisioning {
-        [*] --> IAM: Create IAM role + cost tag
-        IAM --> EFS: Create EFS volume
-        EFS --> Secrets: Store git tokens in Secrets Manager
-        Secrets --> ECS: Create ECS task definition
-        ECS --> Boot: Start container
-        Boot --> [*]
+        [*] --> S3: Create S3 prefix + workspace
+        S3 --> Memory: Create AgentCore Memory
+        Memory --> Identity: Configure OAuth/Cognito
+        Identity --> Policy: Apply Cedar policies
+        Policy --> Gateway: Register MCP tools
+        Gateway --> Deploy: Deploy Strands agent to AgentCore Runtime
+        Deploy --> [*]
     }
 
-    Provisioning --> Active: First-boot complete
+    Provisioning --> Active: Agent ready (~30s)
 
     state Active {
-        [*] --> Running: Agents working
-        Running --> Idle: No activity (30 min)
-        Idle --> Running: Client reconnects
-        Idle --> Hibernated: No activity (24h)
-        Hibernated --> Running: Client reconnects
+        [*] --> Running: Agents working (microVM)
+        Running --> Idle: No activity (session stops)
+        Idle --> Running: Client reconnects (session resumes)
+        Idle --> Suspended: No activity (configurable)
+        Suspended --> Running: Client reconnects
     }
 
     Active --> Teardown: Client cancels or admin action
 
     state Teardown {
-        [*] --> StopECS: Stop ECS task
-        StopECS --> RetainEFS: Retain EFS 30 days
-        RetainEFS --> DeactivateIAM: Deactivate IAM role
-        DeactivateIAM --> Finalize: Finalize billing
+        [*] --> StopAgent: Stop AgentCore sessions
+        StopAgent --> RetainS3: Retain S3 data 30 days
+        RetainS3 --> CleanMemory: Delete AgentCore Memory
+        CleanMemory --> Finalize: Finalize billing
         Finalize --> [*]
     }
 
@@ -115,35 +133,38 @@ stateDiagram-v2
 ### Provisioning details
 
 1. Client signs up via dashboard or API
-2. Control plane creates:
-   - IAM role with Bedrock access + cost allocation tag `tenant=<id>`
-   - EFS volume for persistent workspace storage
-   - Secrets Manager entries for git tokens, custom env vars
-   - ECS task definition from the TurboFlow Docker image
-3. Container starts with:
-   ```bash
-   CLAUDE_CODE_USE_BEDROCK=1
-   AWS_REGION=us-east-1
-   AWS_BEDROCK_MODEL_ID=anthropic.claude-sonnet-4-20250514
-   # IAM role assumed via ECS task role — no access keys needed
+2. Control plane provisions (automated via Step Functions, ~30 seconds):
+   - S3 prefix for tenant workspace (`s3://turboflow-tenants/{tenant-id}/`)
+   - AgentCore Memory instance (semantic + summarization + user preference strategies)
+   - AgentCore Identity configuration (OAuth/Cognito for the tenant)
+   - Cedar policy for tenant isolation (access only own S3 prefix, own memory)
+   - MCP tools registered in AgentCore Gateway (GitNexus, custom tools)
+   - Cost allocation tag `tenant=<id>` on all resources
+3. Strands agent deployed to AgentCore Runtime with:
+   ```python
+   # Agent configuration (per tenant)
+   model = BedrockModel(model_id="us.anthropic.claude-sonnet-4-6")
+   memory = AgentCoreMemorySessionManager(memory_id=tenant_memory_id)
+   agent = Agent(model=model, tools=[...], session_manager=memory)
+   # Workspace at /mnt/workspace (persistent, S3-backed)
    ```
-4. First-boot entrypoint runs: Dolt identity, Beads init, MCP registration
-5. Client connects their GitHub/GitLab repos
-6. GitNexus indexes the repos → knowledge graph ready
+4. Client connects their GitHub/GitLab repos
+5. GitNexus indexes the repos → knowledge graph ready
 
 ### Runtime
 
-- Client interacts via Claude Code CLI (SSH/web terminal) or future web UI
-- Agents run through Ruflo → model calls go to Bedrock
-- Beads persists decisions to Dolt on EFS
-- GitNexus serves codebase intelligence via MCP
-- CloudWatch captures per-tenant metrics (tokens, cost, agent activity)
+- Client interacts via API, web UI, or optional Kiro CLI / Claude Code terminal
+- Strands agents run in AgentCore Runtime microVMs → model calls go to Bedrock
+- AgentCore Memory persists context across sessions (short-term + long-term)
+- Beads tracks decisions and work items (stored in S3 via persistent filesystem)
+- GitNexus serves codebase intelligence via AgentCore Gateway (managed MCP)
+- AgentCore Observability captures per-tenant OTEL traces, metrics, and logs → CloudWatch
 
 ### Teardown
 
-- Control plane stops ECS task
-- EFS volume retained for 30 days (configurable) then deleted
-- IAM role deactivated
+- Control plane stops all AgentCore sessions for the tenant
+- S3 data retained for 30 days (configurable via S3 Lifecycle) then deleted
+- AgentCore Memory deleted
 - Billing finalized
 
 ---
