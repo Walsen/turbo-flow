@@ -1,0 +1,76 @@
+name: Deploy to AgentCore
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/agent-runtime/**"
+      - "agent-adapter/python/turboflow_adapter/**"
+      - ".github/workflows/deploy-agentcore.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Agent to AgentCore Runtime
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/agent-runtime
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install AgentCore CLI
+        run: npm install -g @aws/agentcore
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Create AgentCore project structure
+        run: |
+          agentcore create \
+            --name turboflowdemo \
+            --defaults \
+            --memory longAndShortTerm \
+            --skip-git \
+            --skip-python-setup \
+            --output-dir /tmp/agentcore-deploy
+
+      - name: Copy agent code
+        run: cp main.py /tmp/agentcore-deploy/turboflowdemo/app/turboflowdemo/main.py
+
+      - name: Configure deployment target
+        run: |
+          cat > /tmp/agentcore-deploy/turboflowdemo/agentcore/aws-targets.json << EOF
+          [{"name": "default", "region": "us-east-1", "account": "${{ secrets.AWS_ACCOUNT_ID }}"}]
+          EOF
+
+      - name: Deploy to AgentCore
+        working-directory: /tmp/agentcore-deploy/turboflowdemo
+        run: agentcore deploy --yes
+
+      - name: Smoke test
+        working-directory: /tmp/agentcore-deploy/turboflowdemo
+        run: |
+          RESPONSE=$(agentcore invoke "Reply with exactly: DEPLOY_OK" 2>&1)
+          echo "$RESPONSE"
+          echo "$RESPONSE" | grep -q "DEPLOY_OK" || { echo "Smoke test failed"; exit 1; }
+          echo "✓ Agent responding correctly"
