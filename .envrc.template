@@ -1,0 +1,39 @@
+# =============================================================================
+# TurboFlow — Environment Configuration
+#
+# Copy this file to .envrc and fill in your values:
+#   cp .envrc.template .envrc
+#   direnv allow .
+#
+# Requires: direnv (https://direnv.net), devbox (https://www.jetify.com/devbox)
+# =============================================================================
+
+# ── AWS Configuration ────────────────────────────────────────────────────────
+# Your AWS CLI profile name
+export AWS_PROFILE=your-profile
+
+# Region for Bedrock model calls
+export AWS_REGION=us-east-1
+
+# ── Model Provider ───────────────────────────────────────────────────────────
+# Option A: Amazon Bedrock (recommended — no API key needed, uses AWS credentials)
+export CLAUDE_CODE_USE_BEDROCK=1
+
+# Option B: Anthropic API directly (uncomment and set your key)
+# export ANTHROPIC_API_KEY=sk-ant-...
+
+# ── Cloud Deployment (optional) ──────────────────────────────────────────────
+# Set this to your AgentCore Runtime ARN to enable cloud mode.
+# When set, `tf` routes prompts to the deployed agent instead of running locally.
+# Get this from: agentcore status (after deploying)
+# export TURBOFLOW_RUNTIME_ARN=arn:aws:bedrock-agentcore:us-east-1:ACCOUNT_ID:runtime/YOUR_RUNTIME_ID
+
+# ── Devbox Environment ───────────────────────────────────────────────────────
+# Loads Python, Node.js, uv, and other tools from devpods/devbox.json
+if command -v devbox &>/dev/null && [ -f devpods/devbox.json ]; then
+    eval "$(devbox shellenv --init-hook --install --no-refresh-alias --config devpods/devbox.json)"
+fi
+
+# ── TurboFlow CLI ────────────────────────────────────────────────────────────
+# Adds the `tf` command to your PATH
+PATH_add bin

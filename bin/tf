@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# TurboFlow CLI — wrapper to run tf from anywhere in the repo
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec uv run --project "$REPO_ROOT/agent-adapter/python" --extra strands tf "$@"

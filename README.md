@@ -60,12 +60,14 @@ uv sync --extra strands
 ### Configure
 
 ```bash
-# Option A: AWS Bedrock (recommended)
-export CLAUDE_CODE_USE_BEDROCK=1
-export AWS_REGION=us-east-1
+# Copy the environment template and fill in your values
+cp .envrc.template .envrc
+direnv allow .
 
-# Option B: Anthropic API directly
-export ANTHROPIC_API_KEY=sk-ant-...
+# At minimum, set your AWS profile and region in .envrc:
+#   export AWS_PROFILE=your-profile
+#   export CLAUDE_CODE_USE_BEDROCK=1
+#   export AWS_REGION=us-east-1
 ```
 
 ### Run your first agent
