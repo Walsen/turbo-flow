@@ -27,7 +27,7 @@ dev = [
 ]
 
 [project.scripts]
-tf-adapter = "turboflow_adapter.cli:main"
+tf = "turboflow_adapter.cli:main"
 
 [build-system]
 requires = ["hatchling"]
