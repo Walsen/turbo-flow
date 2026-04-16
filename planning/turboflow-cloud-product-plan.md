@@ -264,6 +264,12 @@ gantt
     section Phase 6 — Enterprise
     SSO + audit logs                     :p6a, after p5c, 14d
     Dedicated throughput + SLA           :p6b, after p6a, 14d
+
+    section Phase 7 — Prompt-to-Production
+    GitHub + Amplify deploy tools        :p7a, after p6b, 10d
+    CloudFormation/CDK generation        :p7b, after p7a, 10d
+    Cost guardrails + Cedar policies     :p7c, after p7b, 7d
+    Complex infra deployment             :p7d, after p7c, 14d
 ```
 
 ### Phase 1: Bedrock integration (2-3 weeks)
@@ -416,6 +422,53 @@ Interactive sessions → ECS Fargate + S3 Files (NFS mount)
 - [ ] Dedicated Bedrock throughput
 - [ ] SLA monitoring
 - [ ] On-prem deployment option
+
+### Phase 7: Prompt-to-Production — deploy infrastructure from prompts
+
+Agents don't just generate code — they ship it. A prompt produces a live, deployed application with infrastructure.
+
+**Capabilities:**
+
+- [ ] GitHub tools — create repo, push code, create branches, open PRs
+- [ ] Amplify deployment — create app, deploy frontend from repo, return live URL
+- [ ] CloudFormation/CDK generation — agent writes IaC, deploys backend infrastructure
+- [ ] Lambda + API Gateway + DynamoDB — serverless backend deployment
+- [ ] S3 + CloudFront — static site / asset hosting
+- [ ] Cognito — user authentication for deployed apps
+- [ ] Route 53 — custom domain configuration (optional)
+- [ ] Cost guardrails — budget limits per tenant, resource quotas, approval gates for expensive resources
+- [ ] AgentCore Policy (Cedar) — restrict what resources agents can create per tenant plan
+- [ ] Rollback handling — CloudFormation native rollback on failure, agent reports errors gracefully
+
+**Example flows:**
+
+```
+# Simple: static site
+tf "Build a landing page for my SaaS product"
+→ Agent codes HTML/CSS/JS → creates GitHub repo → deploys to Amplify
+→ Returns: "Live at https://main.d1abc123.amplifyapp.com"
+
+# Medium: full-stack app
+tf --team full-build "Build a task management app with React and FastAPI"
+→ Architect designs → Coder implements → Tester writes tests
+→ Agent generates CDK stack (API Gateway + Lambda + DynamoDB + Amplify)
+→ Deploys everything
+→ Returns: "Frontend: https://... | API: https://... | Repo: https://github.com/..."
+
+# Complex: real-time system
+tf --team full-build "Build a real-time chat app with auth, message history, and file sharing"
+→ Full team designs and implements
+→ Deploys: Cognito + API Gateway WebSocket + Lambda + DynamoDB + S3 + CloudFront + Amplify
+→ Returns live URLs + architecture diagram + repo link
+```
+
+**Guardrails per tenant plan:**
+
+| Plan | Can deploy | Monthly infra budget | Approval required |
+|---|---|---|---|
+| Starter | Amplify (static sites only) | $10 | No |
+| Pro | Amplify + Lambda + DynamoDB + S3 | $50 | Over $25 |
+| Enterprise | Any AWS resource | Custom | Configurable |
 
 ---
 
