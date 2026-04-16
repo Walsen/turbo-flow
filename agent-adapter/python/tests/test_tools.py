@@ -24,7 +24,7 @@ class TestToolCollections:
 
     def test_all_tools_count(self) -> None:
         tools = all_tools()
-        assert len(tools) == 8
+        assert len(tools) == 15  # 4 beads + 4 file + 4 gitnexus CLI + 3 memory
 
     def test_no_duplicates(self) -> None:
         tools = all_tools()

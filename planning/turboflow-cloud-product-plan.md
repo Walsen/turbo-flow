@@ -223,6 +223,53 @@ The Dockerfile and Taskfile are cloud-agnostic. Only the model routing env vars 
 
 Margins improve with scale (shared control plane costs, reserved Bedrock capacity, Fargate Spot).
 
+### Phase 3 cost estimate (refined, April 2026)
+
+#### Build cost (one-time, 3-4 weeks of dev/test)
+
+| Component | Monthly during build | Notes |
+|---|---|---|
+| Dev/test ECS cluster (1 task) | ~$30 | 2 vCPU, 8GB, work hours only |
+| EFS (test volume) | ~$1 | Minimal storage |
+| Secrets Manager (2-3 secrets) | ~$1.20 | $0.40/secret/month |
+| CloudWatch (logs + metrics) | ~$5 | Low volume |
+| NAT Gateway or VPC endpoints | ~$21-32 | NAT: $32. VPC endpoints (Bedrock+ECR+S3): ~$21 |
+| Terraform state (S3 + DynamoDB) | ~$1 | Negligible |
+| **Total build phase** | **~$60-70** | One month of dev/test infra |
+
+#### Per-tenant operating cost (refined)
+
+| Component | Monthly per tenant | Notes |
+|---|---|---|
+| ECS Fargate (2 vCPU, 8GB) | $29-60 | On-demand: $60. Fargate Spot: ~$29 (50% savings) |
+| EFS (10GB) | $0.25-3 | Standard: $3. Infrequent Access: ~$0.25 |
+| Secrets Manager (3 secrets) | $1.20 | Git token, API keys, custom env |
+| CloudWatch logs | $2-5 | 5GB ingestion = ~$2.50 |
+| CloudWatch metrics | $0.30 | ~10 custom metrics |
+| Bedrock tokens (1M, mixed routing) | $5-20 | With Strands auto-routing: haiku for simple, sonnet for standard |
+| IAM role + cost tags | $0 | Free |
+| **Total per tenant** | **$38-89** | |
+
+#### Shared platform cost (fixed, amortized)
+
+| Component | Monthly | Notes |
+|---|---|---|
+| VPC + subnets | $0 | Free |
+| NAT Gateway or VPC endpoints | $21-32 | Amortized across all tenants |
+| ECR (container registry) | ~$1 | Image storage |
+| Terraform state | ~$1 | S3 + DynamoDB |
+| **Total shared** | **$23-34** | At 10 tenants: ~$3/tenant |
+
+#### Revised margin analysis
+
+| Tier | Price | Cost per tenant | Margin |
+|---|---|---|---|
+| Starter ($99/mo) | $99 | $38-55 (Spot + routing) | 44-61% |
+| Pro ($299/mo) | $299 | $60-100 (higher usage) | 67-80% |
+| Enterprise (custom) | $500+ | $100-200 | Negotiable |
+
+Margins improved vs original estimates due to: Fargate Spot (~50% compute savings), Strands auto model routing (haiku for simple tasks), EFS Infrequent Access tier.
+
 ---
 
 ## Cost Analysis — Model Routing Impact
@@ -294,11 +341,12 @@ gantt
     OTEL observability integration       :p2d, after p2c, 5d
     Evaluate Strands as Ruflo replacement:p2e, after p2d, 5d
 
-    section Phase 3 — Tenant Isolation (AWS Infra)
-    ECS task def + IAM roles             :p3a, after p2e, 7d
-    EFS + Secrets Manager                :p3b, after p3a, 5d
-    Cost allocation tags + CloudWatch    :p3c, after p3b, 5d
-    Terraform/CDK module                 :p3d, after p3c, 5d
+    section Phase 3 — Serverless Tenant Isolation
+    AgentCore Runtime deployment       :p3a, after p2e, 5d
+    S3 Files per-tenant setup          :p3b, after p3a, 5d
+    AgentCore Gateway + Memory + Identity :p3c, after p3b, 5d
+    AgentCore Policy + Observability   :p3d, after p3c, 5d
+    Terraform/CDK module               :p3e, after p3d, 5d
 
     section Phase 4 — Control Plane
     Tenant CRUD API                      :p4a, after p3d, 10d
@@ -342,9 +390,9 @@ This phase reduces vendor risk and builds the foundation for all future work. Th
   - [x] 8 TurboFlow-specific Strands tools (4 Beads + 4 file ops) — agents auto-check memory and track work
   - [x] 4 multi-agent team recipes using supervisor-agent pattern (feature, bug-fix, code-review, security-audit) — replaces `rf-swarm`
 - [ ] Strands Agents backend (TypeScript) — programmatic, native Bedrock, TypeScript SDK
-- [ ] Strands + GitNexus integration — codebase intelligence as MCP tool for Strands agents
-- [ ] OTEL observability — pipe Strands traces to CloudWatch / Statusline
-- [ ] Evaluate Strands as full Ruflo replacement — document remaining gaps
+- [x] Strands + GitNexus integration — codebase intelligence as CLI tools + MCP client for Strands agents
+- [x] OTEL observability — Strands telemetry setup (console/OTLP), execution tracker, cost estimation per task
+- [x] Evaluate Strands as full Ruflo replacement — documented in `planning/ruflo-strands-evaluation.md`
 - [ ] Document migration guide (Ruflo → Strands transition path)
 
 #### Dual-language adapter architecture
@@ -378,14 +426,111 @@ Why both languages:
 - TurboFlow already installs Python 3 on every platform
 - Tenants who code in Python get a native experience; TypeScript tenants keep theirs
 
-### Phase 3: Tenant isolation — AWS infrastructure (3-4 weeks)
+### Phase 3: Tenant isolation — serverless-first architecture (3-4 weeks)
 
-- [ ] ECS task definition with per-tenant IAM role
-- [ ] EFS volume provisioning per tenant
-- [ ] Secrets Manager integration for git tokens
-- [ ] Cost allocation tags on all resources
-- [ ] CloudWatch log groups per tenant
+Phase 3 uses a serverless-first architecture built on Bedrock AgentCore + S3. This eliminates idle compute costs, simplifies operations, and aligns with how Strands agents are designed to run. All services confirmed GA from AWS documentation (April 2026).
+
+#### Architecture (confirmed against AWS docs)
+
+```
+Tenant request → API Gateway → Lambda (control plane)
+                                  ↓
+                          AgentCore Runtime (Strands agent)
+                            ├── /mnt/workspace (persistent filesystem, S3-backed)
+                            ├── AgentCore Memory (short-term + long-term)
+                            ├── AgentCore Gateway (MCP tools: GitNexus, custom)
+                            └── Bedrock (Claude, Haiku, Nova)
+
+Interactive sessions → ECS Fargate + S3 Files (NFS mount)
+                            └── Kiro CLI or Claude Code CLI
+```
+
+**AgentCore Runtime** (confirmed GA — [docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html)):
+- Supports Strands, LangGraph, CrewAI natively — framework agnostic
+- MicroVM isolation per session — dedicated CPU, memory, filesystem
+- Up to 8 hours execution time for long-running multi-agent teams
+- Persistent filesystem (`/mnt/workspace`) survives stop/resume cycles (preview, S3-backed)
+- Consumption-based pricing — I/O wait is free (agents spend 30-70% waiting for LLM responses)
+- Built-in: identity (OAuth/Cognito/IAM), observability (OTEL), MCP gateway, A2A protocol, bidirectional streaming
+- 100MB payload support for multi-modal content
+
+**AgentCore Memory** (confirmed GA — [docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/strands-sdk-memory.html)):
+- Native Strands integration via `AgentCoreMemorySessionManager`
+- Short-term memory (in-session context) + long-term memory (semantic, summarization, user preferences)
+- Replaces our SQLite AgentDB — managed, no infrastructure, per-tenant namespaces
+- Strategies: `SEMANTIC` (fact extraction), `SUMMARIZATION` (session summaries), `USER_PREFERENCE` (learned preferences)
+
+**S3 Files** (confirmed GA — [docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-files.html)):
+- Mounts S3 buckets as NFS filesystems on Lambda, EC2, ECS, EKS
+- Used for ECS Fargate fallback (interactive Claude Code sessions)
+- Per-tenant isolation via S3 prefixes + access points
+- Reads ≥128KB stream directly from S3 (no file system charge)
+- High-performance storage for active working set, auto-expires after configurable window (1-365 days)
+
+**Storage strategy:**
+- AgentCore agents: use built-in persistent filesystem (`/mnt/workspace`) — S3-backed, survives stop/resume
+- Interactive CLI sessions: ECS Fargate + S3 Files NFS mount
+- Long-term data: S3 bucket per tenant prefix (`s3://turboflow-tenants/{tenant-id}/`)
+- Both paths write to the same S3 bucket — agents and APIs see the same data
+
+#### Revised task list
+
+- [ ] AgentCore Runtime deployment for Strands agents (direct code deployment)
+- [ ] AgentCore persistent filesystem for agent workspaces (`/mnt/workspace`)
+- [ ] AgentCore Gateway — register GitNexus and custom tools as managed MCP servers
+- [ ] AgentCore Memory — replace SQLite AgentDB with managed short-term + long-term memory
+- [ ] AgentCore Identity — per-tenant OAuth/Cognito integration
+- [ ] AgentCore Policy — Cedar policies for tenant isolation and tool access control
+- [ ] AgentCore Observability — OTEL traces → CloudWatch per tenant
+- [ ] S3 bucket + prefix structure for per-tenant data
+- [ ] Cost allocation tags on all resources (`tenant=<id>`)
 - [ ] Terraform/CDK module for tenant provisioning
+- [ ] Fallback: ECS Fargate + S3 Files for interactive Kiro CLI / Claude Code sessions
+
+#### Cost estimate (confirmed pricing from AWS docs)
+
+**AgentCore Runtime pricing** (per [AgentCore pricing page](https://aws.amazon.com/bedrock/agentcore/pricing/)):
+- CPU: $0.0895 per vCPU-hour (active consumption only — I/O wait is free)
+- Memory: $0.00945 per GB-hour (peak memory per second, 128MB minimum)
+- Gateway: $0.005 per 1,000 MCP invocations
+- Memory service: $0.25 per 1,000 short-term events; $0.75 per 1,000 long-term records/month (built-in strategies)
+- Identity: free when used through Runtime or Gateway
+- Observability: CloudWatch pricing
+
+**Per-tenant operating cost:**
+
+| Component | Monthly per tenant | Calculation |
+|---|---|---|
+| AgentCore Runtime (CPU) | $2-8 | 100 calls/day × 30s active CPU × 30 days = 25 vCPU-hours × $0.0895 |
+| AgentCore Runtime (Memory) | $1-3 | 2GB peak × 25 hours = 50 GB-hours × $0.00945 |
+| AgentCore Memory | $0.50-2 | 1K events ($0.25) + 500 records ($0.375) + 500 retrievals ($0.25) |
+| AgentCore Gateway | $0.05-0.50 | 10K MCP invocations × $0.005/1K |
+| S3 storage (10GB) | $0.23 | $0.023/GB-month |
+| Bedrock tokens (1M, mixed routing) | $5-20 | Haiku for simple, Sonnet for standard |
+| CloudWatch | $2-5 | Logs + metrics + traces |
+| Secrets Manager | $1.20 | 3 secrets |
+| **Total per tenant** | **$12-40** | |
+
+**Idle tenant cost: ~$0.50/month** (S3 storage + Secrets Manager only — no compute, no memory charges)
+
+**Comparison across all architectures:**
+
+| | ECS Fargate (original) | AgentCore (previous estimate) | AgentCore (confirmed pricing) |
+|---|---|---|---|
+| Per tenant/month | $38-89 | $13-47 | $12-40 |
+| Idle tenant/month | $29-60 | ~$1 | ~$0.50 |
+| Starter margin ($99) | 44-61% | 52-87% | 60-88% |
+| Pro margin ($299) | 67-80% | 84-96% | 87-96% |
+
+**Build cost (one-time, 3-4 weeks):**
+
+| Component | Monthly during build | Notes |
+|---|---|---|
+| AgentCore Runtime (dev/test) | ~$5 | Low usage during development |
+| S3 (test data) | ~$1 | Minimal |
+| Bedrock (test calls) | ~$10 | Testing with Haiku |
+| CloudWatch | ~$3 | Dev logs |
+| **Total build phase** | **~$20** | Significantly cheaper than Fargate dev/test ($60-70) |
 
 ### Phase 4: Control plane API (4-6 weeks)
 
@@ -676,6 +821,7 @@ graph TB
 | Alternative | Provider | Open source | Agentic | Multi-agent | MCP support | Multi-model |
 |---|---|---|---|---|---|---|
 | Claude Code | Anthropic | No | Yes | Yes (Agent Teams) | Yes | Claude only (+ Bedrock) |
+| **Kiro CLI** | **AWS** | **No** | **Yes** | **No** | **Yes** | **Yes (Bedrock native)** |
 | Aider | Independent | Yes (Apache 2) | Yes | No | No | Yes (any OpenAI-compatible) |
 | OpenHands | All Hands AI | Yes (MIT) | Yes | No | Yes | Yes |
 | Cline | Community | Yes (Apache 2) | Yes (VS Code) | No | Yes | Yes |
@@ -869,9 +1015,9 @@ Path C (Strands as orchestrator) should be evaluated after gaining hands-on expe
 4. ~~Build Strands multi-agent patterns~~ — **done** (4 team recipes: feature, bug-fix, code-review, security-audit)
 5. ~~Integrate Strands with Beads~~ — **done** (4 Beads tools built into every agent)
 6. ~~Auto model routing~~ — **done** (`select_tier()` replaces Ruflo 3-tier routing)
-7. **Integrate Strands with GitNexus** — codebase intelligence as MCP tool for Strands agents
-8. **Add OTEL observability** — pipe Strands traces to CloudWatch / Statusline
-9. **Evaluate Strands as full Ruflo replacement** — document remaining gaps, build migration guide
+7. ~~Integrate Strands with GitNexus~~ — **done** (CLI tools + MCP client for full 7-tool access)
+8. ~~Add OTEL observability~~ — **done** (setup_telemetry for console/OTLP, track_execution context manager, cost estimation)
+9. ~~Evaluate Strands as full Ruflo replacement~~ — **done** (`planning/ruflo-strands-evaluation.md`). Core workflow covered; gaps in AgentDB, deep QE, hooks intelligence, neural training.
 10. Deploy 2-3 internal tenants on ECS to prove the model (Phase 3)
 11. Build control plane (tenant CRUD + IAM provisioning)
 12. Pilot with 1-2 external clients

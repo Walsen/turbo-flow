@@ -33,6 +33,10 @@ class TeamRecipe(str, Enum):
     BUG_FIX = "bug-fix"
     CODE_REVIEW = "code-review"
     SECURITY_AUDIT = "security-audit"
+    FULL_BUILD = "full-build"
+    TDD = "tdd"
+    COVERAGE = "coverage-analysis"
+    QA_GATE = "qa-gate"
 
 
 def _make_agent_tool(agent_type: AgentType, model_tier: ModelTier | None = None):
@@ -213,9 +217,207 @@ def _build_security_audit_team(supervisor_tier: ModelTier) -> Any:
     return supervisor
 
 
+def _build_full_build_team(supervisor_tier: ModelTier) -> Any:
+    """
+    Full-build team: architect + coder + tester + reviewer + security.
+
+    Three-phase workflow:
+      Phase 1 — Design: architect designs the system (components, DB schema, API contract, file structure)
+      Phase 2 — Build: coder implements the design, tester writes tests
+      Phase 3 — QE gate: reviewer checks quality, security architect audits for vulnerabilities
+
+    The supervisor coordinates handoffs between phases and ensures each phase
+    completes before the next begins. All decisions are recorded in Beads.
+    """
+    specialist_tools = [
+        _make_agent_tool(AgentType.ARCHITECT, ModelTier.OPUS),
+        _make_agent_tool(AgentType.CODER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.TESTER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.REVIEWER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.SECURITY, ModelTier.OPUS),
+    ]
+
+    model = create_model(supervisor_tier)
+
+    supervisor = Agent(
+        model=model,
+        system_prompt=(
+            "You are a technical program manager coordinating a full application build. "
+            "You have 5 specialist agents: system_architect, coder, tester, reviewer, security_architect. "
+            "\n\n"
+            "Execute these phases IN ORDER. Do not start a phase until the previous one completes.\n"
+            "\n"
+            "═══ PHASE 1: DESIGN ═══\n"
+            "1. Check project state with beads_ready\n"
+            "2. Delegate to system_architect_agent with this exact request:\n"
+            "   'Design the full application architecture. Deliver:\n"
+            "    a) System component diagram (mermaid)\n"
+            "    b) Database schema (tables, relationships, indexes)\n"
+            "    c) API contract (all endpoints with request/response shapes)\n"
+            "    d) File and folder structure\n"
+            "    e) Technology decisions with trade-off rationale\n"
+            "    Record all decisions in Beads.'\n"
+            "3. Save the design output — you will pass it to the next phase.\n"
+            "\n"
+            "═══ PHASE 2: BUILD ═══\n"
+            "4. Delegate to coder_agent: 'Implement the application based on this design: [paste design]. "
+            "   Write all source files, configuration, database migrations, and a README. "
+            "   Follow the design exactly.'\n"
+            "5. Delegate to tester_agent: 'Write comprehensive tests for the implementation: "
+            "   unit tests for business logic, integration tests for API endpoints, "
+            "   edge cases for error handling. Use the project test framework.'\n"
+            "\n"
+            "═══ PHASE 3: QE GATE ═══\n"
+            "6. Delegate to reviewer_agent: 'Review all code for: correctness, maintainability, "
+            "   adherence to the design, missing error handling, and code style. "
+            "   List issues by severity (critical/major/minor).'\n"
+            "7. Delegate to security_architect_agent: 'Security audit the implementation: "
+            "   check OWASP Top 10, injection vulnerabilities, auth/authz issues, "
+            "   data exposure, missing input validation, dependency vulnerabilities. "
+            "   Cite CWE IDs. Rate severity.'\n"
+            "\n"
+            "═══ FINAL REPORT ═══\n"
+            "8. Synthesize everything into a final report with these sections:\n"
+            "   - Design Summary (key decisions)\n"
+            "   - Implementation Summary (files created, what was built)\n"
+            "   - Test Coverage (what's tested, any gaps)\n"
+            "   - Code Review Findings (issues by severity)\n"
+            "   - Security Findings (vulnerabilities by severity)\n"
+            "   - Remaining Work (anything not completed)\n"
+            "9. Record the final report and any remaining work in Beads.\n"
+            "\n"
+            "IMPORTANT: Pass the actual design output to the coder, not a summary. "
+            "The coder needs the full schema, API contract, and file structure."
+        ),
+        tools=[*specialist_tools, *beads_tools()],
+    )
+
+    log.info(
+        "Created full-build team (supervisor + 5 specialists: architect, coder, tester, reviewer, security)"
+    )
+    return supervisor
+
+
+def _build_tdd_team(supervisor_tier: ModelTier) -> Any:
+    """
+    TDD team: researcher analyzes requirements → tester writes tests first → coder implements to pass.
+    Test-driven development workflow.
+    """
+    specialist_tools = [
+        _make_agent_tool(AgentType.RESEARCHER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.TESTER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.CODER, ModelTier.SONNET),
+    ]
+
+    model = create_model(supervisor_tier)
+
+    supervisor = Agent(
+        model=model,
+        system_prompt=(
+            "You are a TDD coach coordinating test-driven development. "
+            "You have: researcher, tester, coder. "
+            "\n\nWorkflow (strict TDD — tests BEFORE code):\n"
+            "1. Delegate to researcher_agent: 'Analyze the requirements and break them into testable behaviors. "
+            "   List each behavior as a test case name with expected input/output.'\n"
+            "2. Delegate to tester_agent: 'Write failing tests for ALL behaviors identified. "
+            "   Tests must be runnable and must FAIL (no implementation exists yet). "
+            "   Use the project test framework.'\n"
+            "3. Delegate to coder_agent: 'Implement the MINIMUM code needed to make ALL tests pass. "
+            "   Do not add functionality beyond what the tests require. "
+            "   Run the tests after implementing to verify they pass.'\n"
+            "4. If any tests still fail, delegate back to coder_agent to fix.\n"
+            "5. Report: tests written, tests passing, implementation summary.\n"
+            "6. Record the TDD cycle in Beads."
+        ),
+        tools=[*specialist_tools, *beads_tools()],
+    )
+
+    log.info("Created TDD team (supervisor + 3 specialists)")
+    return supervisor
+
+
+def _build_coverage_team(supervisor_tier: ModelTier) -> Any:
+    """
+    Coverage analysis team: tester analyzes existing tests → identifies gaps → generates missing tests.
+    """
+    specialist_tools = [
+        _make_agent_tool(AgentType.TESTER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.RESEARCHER, ModelTier.SONNET),
+    ]
+
+    model = create_model(supervisor_tier)
+
+    supervisor = Agent(
+        model=model,
+        system_prompt=(
+            "You are a test coverage analyst. "
+            "You have: tester, researcher. "
+            "\n\nWorkflow:\n"
+            "1. Delegate to researcher_agent: 'Analyze the codebase. List all public functions, classes, "
+            "   and API endpoints. For each, note whether tests exist.'\n"
+            "2. Delegate to researcher_agent: 'Run the existing test suite and report results. "
+            "   Identify: untested code paths, missing edge cases, error handling not covered.'\n"
+            "3. Delegate to tester_agent: 'Write tests for the TOP 10 coverage gaps identified. "
+            "   Prioritize: error handling, edge cases, integration points. "
+            "   Run the new tests to verify they pass.'\n"
+            "4. Report: current coverage summary, gaps found, tests added, remaining gaps.\n"
+            "5. Record findings in Beads."
+        ),
+        tools=[*specialist_tools, *beads_tools()],
+    )
+
+    log.info("Created coverage-analysis team (supervisor + 2 specialists)")
+    return supervisor
+
+
+def _build_qa_gate_team(supervisor_tier: ModelTier) -> Any:
+    """
+    QA gate team: reviewer + tester + security run in PARALLEL, produce pass/fail report.
+    Use as a quality gate before merging or deploying.
+    """
+    specialist_tools = [
+        _make_agent_tool(AgentType.REVIEWER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.TESTER, ModelTier.SONNET),
+        _make_agent_tool(AgentType.SECURITY, ModelTier.OPUS),
+    ]
+
+    model = create_model(supervisor_tier)
+
+    supervisor = Agent(
+        model=model,
+        system_prompt=(
+            "You are a QA gate coordinator. Your job is to produce a PASS/FAIL verdict. "
+            "You have: reviewer, tester, security_architect. "
+            "\n\nWorkflow (run all three checks):\n"
+            "1. Delegate to reviewer_agent: 'Review all code for correctness, maintainability, "
+            "   and adherence to project conventions. Rate each finding: critical/major/minor.'\n"
+            "2. Delegate to tester_agent: 'Run the test suite. Report: total tests, passing, failing, "
+            "   coverage estimate. List any failing tests with details.'\n"
+            "3. Delegate to security_architect_agent: 'Security scan: OWASP Top 10, injection, "
+            "   auth issues, data exposure. Rate each finding: critical/high/medium/low.'\n"
+            "\n"
+            "═══ VERDICT ═══\n"
+            "4. Compile results into a QA Gate Report:\n"
+            "   - Code Review: X critical, Y major, Z minor findings\n"
+            "   - Tests: X/Y passing, Z% coverage\n"
+            "   - Security: X critical, Y high, Z medium findings\n"
+            "   - VERDICT: PASS (no critical/high findings, all tests pass) or FAIL (explain why)\n"
+            "5. Record the verdict and any critical findings in Beads."
+        ),
+        tools=[*specialist_tools, *beads_tools()],
+    )
+
+    log.info("Created QA gate team (supervisor + 3 specialists)")
+    return supervisor
+
+
 _RECIPES = {
     TeamRecipe.FEATURE: _build_feature_team,
     TeamRecipe.BUG_FIX: _build_bugfix_team,
     TeamRecipe.CODE_REVIEW: _build_review_team,
     TeamRecipe.SECURITY_AUDIT: _build_security_audit_team,
+    TeamRecipe.FULL_BUILD: _build_full_build_team,
+    TeamRecipe.TDD: _build_tdd_team,
+    TeamRecipe.COVERAGE: _build_coverage_team,
+    TeamRecipe.QA_GATE: _build_qa_gate_team,
 }
