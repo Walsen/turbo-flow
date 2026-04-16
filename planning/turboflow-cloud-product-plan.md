@@ -442,7 +442,7 @@ Tenant request → API Gateway → Lambda (control plane)
                             └── Bedrock (Claude, Haiku, Nova)
 
 Interactive sessions → ECS Fargate + S3 Files (NFS mount)
-                            └── Claude Code CLI
+                            └── Kiro CLI or Claude Code CLI
 ```
 
 **AgentCore Runtime** (confirmed GA — [docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agents-tools-runtime.html)):
@@ -485,7 +485,7 @@ Interactive sessions → ECS Fargate + S3 Files (NFS mount)
 - [ ] S3 bucket + prefix structure for per-tenant data
 - [ ] Cost allocation tags on all resources (`tenant=<id>`)
 - [ ] Terraform/CDK module for tenant provisioning
-- [ ] Fallback: ECS Fargate + S3 Files for interactive Claude Code CLI sessions
+- [ ] Fallback: ECS Fargate + S3 Files for interactive Kiro CLI / Claude Code sessions
 
 #### Cost estimate (confirmed pricing from AWS docs)
 
@@ -821,6 +821,7 @@ graph TB
 | Alternative | Provider | Open source | Agentic | Multi-agent | MCP support | Multi-model |
 |---|---|---|---|---|---|---|
 | Claude Code | Anthropic | No | Yes | Yes (Agent Teams) | Yes | Claude only (+ Bedrock) |
+| **Kiro CLI** | **AWS** | **No** | **Yes** | **No** | **Yes** | **Yes (Bedrock native)** |
 | Aider | Independent | Yes (Apache 2) | Yes | No | No | Yes (any OpenAI-compatible) |
 | OpenHands | All Hands AI | Yes (MIT) | Yes | No | Yes | Yes |
 | Cline | Community | Yes (Apache 2) | Yes (VS Code) | No | Yes | Yes |

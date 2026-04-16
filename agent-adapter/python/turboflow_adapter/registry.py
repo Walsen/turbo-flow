@@ -27,11 +27,13 @@ class BackendRegistry:
         from turboflow_adapter.backends.aider import AiderBackend
         from turboflow_adapter.backends.openhands import OpenHandsBackend
         from turboflow_adapter.backends.strands import StrandsBackend
+        from turboflow_adapter.backends.kiro import KiroBackend
 
         self.register("claude", ClaudeBackend)
         self.register("aider", AiderBackend)
         self.register("openhands", OpenHandsBackend)
         self.register("strands", StrandsBackend)
+        self.register("kiro", KiroBackend)
 
     def register(self, id: str, factory: BackendFactory) -> None:
         self._factories[id] = factory
