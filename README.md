@@ -6,14 +6,27 @@
 ![Strands](https://img.shields.io/badge/Strands_Agents-1.35-purple?style=for-the-badge)
 ![Bedrock](https://img.shields.io/badge/Amazon_Bedrock-native-orange?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![Adventure Wave Labs](https://img.shields.io/badge/Adventure_Wave_Labs-Builder-ff6b6b?style=for-the-badge)
 
 **AI coding agents with cross-session memory, codebase intelligence, and multi-agent teams.**
 
 **Run locally or deploy to AWS with one command.**
 
+*Built & Presented by [Adventure Wave Labs](https://www.adventureonthewave.com/#projects)*
+
 [Quick Start](#quick-start) • [Agent Types](#agent-types) • [Team Recipes](#team-recipes) • [CLI Reference](#cli-reference) • [Deploy to Cloud](#deploy-to-cloud) • [Architecture](#architecture)
 
 </div>
+
+---
+
+## About Adventure Wave Labs
+
+<div align="center">
+  <img src="https://i.ibb.co/N6m72sYQ/AWLabs.png" alt="Adventure Wave Labs" width="600">
+</div>
+
+**Adventure Wave Labs** is the team behind TurboFlow — a complete agentic development environment built for the Claude ecosystem. We design, build, and maintain the tooling that brings together orchestration, memory, codebase intelligence, and agent isolation into a single streamlined workflow.
 
 ---
 
@@ -39,7 +52,7 @@ TurboFlow is a platform for running AI coding agents that:
 ### Install
 
 ```bash
-git clone https://github.com/adventurewavelabs/turbo-flow
+git clone https://github.com/Walsen/turbo-flow
 cd turbo-flow/agent-adapter/python
 uv sync --extra strands
 ```
@@ -366,5 +379,13 @@ turbo-flow/
 ## License
 
 MIT — Copyright (c) 2025-2026 Adventure Wave Labs
+
+---
+
+<div align="center">
+
+**Built & Presented by Adventure Wave Labs**
+
+*TurboFlow — Multi-agent AI coding platform. Strands Agents. Amazon Bedrock. Cross-session memory. One command.*
 
 </div>
