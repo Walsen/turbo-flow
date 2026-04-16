@@ -112,8 +112,6 @@ class TenantStack(Stack):
                 "CLAUDE_CODE_USE_BEDROCK": "1",
                 "AWS_REGION": self.region,
                 "TURBOFLOW_MEMORY_BACKEND": "agentcore",
-                "TURBOFLOW_MEMORY_ID": self.memory.memory_id,
-                "TURBOFLOW_GATEWAY_ID": self.gateway.gateway_id,
                 "S3_WORKSPACE_PREFIX": f"s3://{tenant_bucket.bucket_name}/{tenant_id}/",
             },
             tags={
