@@ -5,7 +5,8 @@ on:
     branches: [main]
     paths:
       - "infra/agent-runtime/**"
-      - "agent-adapter/python/turboflow_adapter/**"
+      - "agent-adapter/python/turboflow_adapter/strands/**"
+      - "agent-adapter/python/turboflow_adapter/backends/strands.py"
       - ".github/workflows/deploy-agentcore.yml"
   workflow_dispatch:
 
