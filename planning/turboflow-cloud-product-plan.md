@@ -341,11 +341,12 @@ gantt
     OTEL observability integration       :p2d, after p2c, 5d
     Evaluate Strands as Ruflo replacement:p2e, after p2d, 5d
 
-    section Phase 3 — Tenant Isolation (AWS Infra)
-    ECS task def + IAM roles             :p3a, after p2e, 7d
-    EFS + Secrets Manager                :p3b, after p3a, 5d
-    Cost allocation tags + CloudWatch    :p3c, after p3b, 5d
-    Terraform/CDK module                 :p3d, after p3c, 5d
+    section Phase 3 — Serverless Tenant Isolation
+    AgentCore Runtime deployment       :p3a, after p2e, 5d
+    S3 Files per-tenant setup          :p3b, after p3a, 5d
+    AgentCore Gateway + Memory + Identity :p3c, after p3b, 5d
+    AgentCore Policy + Observability   :p3d, after p3c, 5d
+    Terraform/CDK module               :p3e, after p3d, 5d
 
     section Phase 4 — Control Plane
     Tenant CRUD API                      :p4a, after p3d, 10d
@@ -425,14 +426,100 @@ Why both languages:
 - TurboFlow already installs Python 3 on every platform
 - Tenants who code in Python get a native experience; TypeScript tenants keep theirs
 
-### Phase 3: Tenant isolation — AWS infrastructure (3-4 weeks)
+### Phase 3: Tenant isolation — serverless-first architecture (3-4 weeks)
 
-- [ ] ECS task definition with per-tenant IAM role
-- [ ] EFS volume provisioning per tenant
-- [ ] Secrets Manager integration for git tokens
-- [ ] Cost allocation tags on all resources
-- [ ] CloudWatch log groups per tenant
+Phase 3 pivots from ECS Fargate containers to a serverless-first architecture using Bedrock AgentCore + S3 Files. This eliminates idle compute costs, simplifies operations, and aligns with how Strands agents are designed to run.
+
+#### Architecture: AgentCore + S3 Files
+
+```
+Tenant request → API Gateway → Lambda (control plane)
+                                  ↓
+                          AgentCore Runtime (Strands agent)
+                                  ↓
+                    ┌─────────────┼─────────────┐
+                    ↓             ↓             ↓
+              S3 Files        Bedrock       AgentCore
+              (workspace,     (Claude,      Memory
+               Beads, code)   Haiku, Nova)  (short + long term)
+```
+
+**Why AgentCore over ECS Fargate:**
+
+| | ECS Fargate (original plan) | AgentCore (revised) |
+|---|---|---|
+| Pricing | Pay for allocated vCPU/memory while running | Pay only for active CPU consumption — I/O wait is free |
+| Idle cost | $29-60/month per tenant | $0 when not running |
+| Agent runtime | Up to container lifetime | Up to 8 hours per session |
+| Cold start | ~2-5s (pre-pulled image) | ~1-2s (microVM) |
+| Identity | DIY (IAM roles per tenant) | Built-in (OAuth, Cognito, IAM) |
+| Memory | DIY (Beads on EFS) | Built-in short-term + long-term memory |
+| Observability | DIY (CloudWatch setup) | Built-in OTEL → CloudWatch |
+| MCP tools | DIY (register per container) | AgentCore Gateway (managed MCP) |
+| Policy/guardrails | DIY | Built-in Cedar policy engine |
+| Evaluations | DIY | Built-in 13 evaluators + custom |
+| Browser tool | Not included | AgentCore Browser (managed) |
+| Code interpreter | Not included | AgentCore Code Interpreter (managed) |
+
+**Why S3 Files over EFS:**
+
+| | EFS (original plan) | S3 Files (revised) |
+|---|---|---|
+| Pricing | $0.30/GB-month (standard) | S3 pricing ($0.023/GB-month) + active working set cache |
+| Scaling | Automatic but expensive at scale | Automatic, S3 economics |
+| Access | NFS mount on ECS/EC2 | NFS mount on any compute (Lambda, Fargate, EC2, AgentCore) |
+| Multi-tenant | Separate EFS per tenant or access points | S3 prefixes per tenant (`s3://turboflow-tenants/{tenant-id}/`) |
+| Durability | 99.999999999% (regional) | 99.999999999% (S3) |
+| Backup | AWS Backup | S3 Versioning (built-in) |
+| Data lifecycle | Manual | S3 Lifecycle policies (auto-tier to IA/Glacier) |
+| Concurrent access | Up to 25K NFS clients | Up to 25K NFS clients |
+| Object + file access | File only | Both simultaneously — agents use files, APIs use objects |
+
+S3 Files is ideal for TurboFlow because:
+- Workspace files, Beads data, GitNexus indexes all live in S3 (durable, cheap)
+- Agents access them as a mounted filesystem (standard file operations)
+- The control plane API accesses the same data as S3 objects (for backups, exports, billing)
+- Per-tenant isolation via S3 prefixes + IAM policies
+- No provisioned capacity — scales automatically
+
+#### Revised task list
+
+- [ ] AgentCore Runtime deployment for Strands agents (direct code deployment)
+- [ ] S3 Files setup — per-tenant S3 prefixes with NFS mount for agent workspaces
+- [ ] AgentCore Gateway — register GitNexus and custom tools as managed MCP servers
+- [ ] AgentCore Memory — replace SQLite AgentDB with managed short-term + long-term memory
+- [ ] AgentCore Identity — per-tenant OAuth/Cognito integration
+- [ ] AgentCore Policy — Cedar policies for tenant isolation and tool access control
+- [ ] AgentCore Observability — OTEL traces → CloudWatch per tenant
+- [ ] Cost allocation tags on all resources (`tenant=<id>`)
 - [ ] Terraform/CDK module for tenant provisioning
+- [ ] Fallback: ECS Fargate for interactive Claude Code CLI sessions (container-only)
+
+#### Revised cost estimate (serverless)
+
+**Per-tenant operating cost (AgentCore + S3 Files):**
+
+| Component | Monthly per tenant | Notes |
+|---|---|---|
+| AgentCore Runtime | $3-15 | Active CPU only. 100 agent calls/day × 30s avg = ~$5. I/O wait is free. |
+| S3 Files (10GB workspace) | $0.50-2 | S3 storage ($0.23) + active working set cache |
+| AgentCore Memory | $1-3 | ~1000 events/month + 500 memory records |
+| AgentCore Gateway | $0.50-1 | ~10K MCP invocations/month |
+| Bedrock tokens (1M, mixed routing) | $5-20 | Haiku for simple, Sonnet for standard |
+| CloudWatch (observability) | $2-5 | Logs + metrics + traces |
+| Secrets Manager | $1.20 | 3 secrets |
+| **Total per tenant** | **$13-47** | |
+
+**Comparison:**
+
+| | Fargate (original) | AgentCore + S3 Files (revised) |
+|---|---|---|
+| Per tenant/month | $38-89 | $13-47 |
+| Starter margin ($99) | 44-61% | 52-87% |
+| Pro margin ($299) | 67-80% | 84-96% |
+| Idle tenant cost | $29-60 | ~$1 (storage only) |
+
+The serverless approach cuts per-tenant costs by 50-65% and eliminates idle compute entirely. A Starter tenant who uses agents intermittently costs ~$13/month instead of ~$50.
 
 ### Phase 4: Control plane API (4-6 weeks)
 
