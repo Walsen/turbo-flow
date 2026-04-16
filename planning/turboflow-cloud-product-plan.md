@@ -223,6 +223,53 @@ The Dockerfile and Taskfile are cloud-agnostic. Only the model routing env vars 
 
 Margins improve with scale (shared control plane costs, reserved Bedrock capacity, Fargate Spot).
 
+### Phase 3 cost estimate (refined, April 2026)
+
+#### Build cost (one-time, 3-4 weeks of dev/test)
+
+| Component | Monthly during build | Notes |
+|---|---|---|
+| Dev/test ECS cluster (1 task) | ~$30 | 2 vCPU, 8GB, work hours only |
+| EFS (test volume) | ~$1 | Minimal storage |
+| Secrets Manager (2-3 secrets) | ~$1.20 | $0.40/secret/month |
+| CloudWatch (logs + metrics) | ~$5 | Low volume |
+| NAT Gateway or VPC endpoints | ~$21-32 | NAT: $32. VPC endpoints (Bedrock+ECR+S3): ~$21 |
+| Terraform state (S3 + DynamoDB) | ~$1 | Negligible |
+| **Total build phase** | **~$60-70** | One month of dev/test infra |
+
+#### Per-tenant operating cost (refined)
+
+| Component | Monthly per tenant | Notes |
+|---|---|---|
+| ECS Fargate (2 vCPU, 8GB) | $29-60 | On-demand: $60. Fargate Spot: ~$29 (50% savings) |
+| EFS (10GB) | $0.25-3 | Standard: $3. Infrequent Access: ~$0.25 |
+| Secrets Manager (3 secrets) | $1.20 | Git token, API keys, custom env |
+| CloudWatch logs | $2-5 | 5GB ingestion = ~$2.50 |
+| CloudWatch metrics | $0.30 | ~10 custom metrics |
+| Bedrock tokens (1M, mixed routing) | $5-20 | With Strands auto-routing: haiku for simple, sonnet for standard |
+| IAM role + cost tags | $0 | Free |
+| **Total per tenant** | **$38-89** | |
+
+#### Shared platform cost (fixed, amortized)
+
+| Component | Monthly | Notes |
+|---|---|---|
+| VPC + subnets | $0 | Free |
+| NAT Gateway or VPC endpoints | $21-32 | Amortized across all tenants |
+| ECR (container registry) | ~$1 | Image storage |
+| Terraform state | ~$1 | S3 + DynamoDB |
+| **Total shared** | **$23-34** | At 10 tenants: ~$3/tenant |
+
+#### Revised margin analysis
+
+| Tier | Price | Cost per tenant | Margin |
+|---|---|---|---|
+| Starter ($99/mo) | $99 | $38-55 (Spot + routing) | 44-61% |
+| Pro ($299/mo) | $299 | $60-100 (higher usage) | 67-80% |
+| Enterprise (custom) | $500+ | $100-200 | Negotiable |
+
+Margins improved vs original estimates due to: Fargate Spot (~50% compute savings), Strands auto model routing (haiku for simple tasks), EFS Infrequent Access tier.
+
 ---
 
 ## Cost Analysis — Model Routing Impact
