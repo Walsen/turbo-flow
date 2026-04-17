@@ -3,7 +3,9 @@ TurboFlow Tenant Stack — per-tenant infrastructure.
 
 Creates for each tenant:
 - AgentCore Runtime (Strands agent deployment)
-- AgentCore Memory (short-term + long-term)
+- AgentCore Memory (short-term + long-term with semantic, summarization, user preference)
+- AgentCore Gateway (managed MCP server for tenant tools)
+- AgentCore Policy Engine + Cedar policy (tenant isolation)
 - S3 prefix isolation (IAM policy scoped to tenant prefix)
 - Cost allocation tags
 - CloudWatch log group
@@ -11,10 +13,12 @@ Creates for each tenant:
 
 from constructs import Construct
 from aws_cdk import (
+    Duration,
     Stack,
     Tags,
     RemovalPolicy,
     CfnOutput,
+    aws_bedrockagentcore as cfn_agentcore,  # noqa: F401 — reserved for Policy when CFN stabilizes
     aws_iam as iam,
     aws_logs as logs,
     aws_s3 as s3,
@@ -41,6 +45,8 @@ class TenantStack(Stack):
     ) -> None:  # type: ignore
         super().__init__(scope, id, **kwargs)
 
+        safe_id = tenant_id.replace("-", "_")
+
         # Apply cost allocation tag to everything in this stack
         Tags.of(self).add("tenant", tenant_id)
         Tags.of(self).add("tenant_name", tenant_name)
@@ -56,6 +62,41 @@ class TenantStack(Stack):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
+        # ── AgentCore Memory ─────────────────────────────────────────────
+        # Replaces local SQLite AgentDB with managed memory.
+        # Short-term: in-session context (90 days retention).
+        # Long-term: semantic facts, session summaries, user preferences.
+        self.memory = agentcore.Memory(
+            self,
+            "TenantMemory",
+            memory_name=f"tf_{safe_id}_memory",
+            description=f"TurboFlow memory for tenant {tenant_name}",
+            expiration_duration=Duration.days(90),
+            memory_strategies=[
+                agentcore.MemoryStrategy.using_built_in_semantic(),
+                agentcore.MemoryStrategy.using_built_in_summarization(),
+                agentcore.MemoryStrategy.using_built_in_user_preference(),
+            ],
+            tags={"tenant": tenant_id, "tenant_plan": tenant_plan},
+        )
+
+        # ── AgentCore Gateway ────────────────────────────────────────────
+        # Managed MCP server hosting for tenant tools.
+        self.gateway = agentcore.Gateway(
+            self,
+            "TenantGateway",
+            gateway_name=f"tf-{tenant_id}-gw",
+            description=f"TurboFlow MCP gateway for tenant {tenant_name}",
+            tags={"tenant": tenant_id, "tenant_plan": tenant_plan},
+        )
+
+        # ── AgentCore Policy Engine + Cedar Policy ────────────────────────
+        # Tenant isolation via Cedar policies.
+        # NOTE: AgentCore Policy via CloudFormation has stabilization issues
+        # as of April 2026. Policy will be applied via AgentCore CLI or API
+        # during tenant provisioning until CFN support stabilizes.
+        # See: planning/turboflow-cloud-product-plan.md Phase 3 notes.
+
         # ── AgentCore Runtime ────────────────────────────────────────────
         artifact = agentcore.AgentRuntimeArtifact.from_s3(
             s3.Location(
@@ -69,7 +110,7 @@ class TenantStack(Stack):
         self.runtime = agentcore.Runtime(
             self,
             "AgentRuntime",
-            runtime_name=f"tf_{tenant_id.replace('-', '_')}",
+            runtime_name=f"tf_{safe_id}",
             agent_runtime_artifact=artifact,
             execution_role=agent_execution_role,
             description=f"TurboFlow agent for tenant {tenant_name} ({tenant_plan})",
@@ -89,12 +130,12 @@ class TenantStack(Stack):
         )
 
         # ── Tenant-scoped IAM policy ─────────────────────────────────────
-        # Restrict S3 access to only this tenant's prefix
         self.tenant_policy = iam.Policy(
             self,
             "TenantS3Policy",
             policy_name=f"turboflow-tenant-{tenant_id}-s3",
             statements=[
+                # S3 access scoped to tenant prefix
                 iam.PolicyStatement(
                     actions=["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
                     resources=[
@@ -112,7 +153,11 @@ class TenantStack(Stack):
 
         # ── Outputs ──────────────────────────────────────────────────────
         CfnOutput(self, "TenantId", value=tenant_id)
-        CfnOutput(self, "RuntimeName", value=f"tf_{tenant_id.replace('-', '_')}")
+        CfnOutput(self, "RuntimeName", value=f"tf_{safe_id}")
         CfnOutput(self, "RuntimeArn", value=self.runtime.agent_runtime_arn)
+        CfnOutput(self, "MemoryId", value=self.memory.memory_id)
+        CfnOutput(self, "MemoryArn", value=self.memory.memory_arn)
+        CfnOutput(self, "GatewayId", value=self.gateway.gateway_id)
+        CfnOutput(self, "GatewayArn", value=self.gateway.gateway_arn)
         CfnOutput(self, "WorkspacePrefix", value=f"s3://{tenant_bucket.bucket_name}/{tenant_id}/")
         CfnOutput(self, "LogGroup", value=self.log_group.log_group_name)
