@@ -50,11 +50,22 @@ def _check_strands() -> bool:
 
 def _create_bedrock_model(model_id: str, region: str | None = None) -> Any:
     """Create a Strands BedrockModel provider."""
+    import boto3
     from strands.models.bedrock import BedrockModel
+
+    region = region or os.environ.get("AWS_REGION", "us-east-1")
+    profile = os.environ.get("AWS_PROFILE")
+
+    # Create an explicit boto3 session so SSO profile credentials resolve
+    # correctly in all environments (containers, CI, etc.)
+    session = boto3.Session(
+        profile_name=profile,
+        region_name=region,
+    )
 
     return BedrockModel(
         model_id=model_id,
-        region_name=region or os.environ.get("AWS_REGION", "us-east-1"),
+        boto_session=session,
     )
 
 
@@ -75,15 +86,12 @@ def _create_openai_model(model_id: str) -> Any:
 # ── Tier resolution ──────────────────────────────────────────────────────
 
 _BEDROCK_TIERS = {
-    "opus": lambda: os.environ.get(
-        "ANTHROPIC_DEFAULT_OPUS_MODEL", "us.anthropic.claude-opus-4-6-v1"
-    ),
-    "sonnet": lambda: os.environ.get(
-        "ANTHROPIC_DEFAULT_SONNET_MODEL", "us.anthropic.claude-sonnet-4-6"
-    ),
-    "haiku": lambda: os.environ.get(
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL", "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-    ),
+    "opus": lambda: os.environ.get("ANTHROPIC_DEFAULT_OPUS_MODEL")
+    or "us.anthropic.claude-opus-4-6-v1",
+    "sonnet": lambda: os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL")
+    or "us.anthropic.claude-sonnet-4-6",
+    "haiku": lambda: os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL")
+    or "us.anthropic.claude-haiku-4-5-20251001-v1:0",
 }
 
 _ANTHROPIC_TIERS = {

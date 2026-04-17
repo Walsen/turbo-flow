@@ -1,6 +1,10 @@
 {
   "lockfile_version": "1",
   "packages": {
+    "awscli2": {
+      "resolved": "github:NixOS/nixpkgs/13043924aaa7375ce482ebe2494338e058282925?narHash=sha256-nwASzrRDD1JBEu%2Fo8ekKYEXm%2FoJW6EMCzCRdrwcLe90%3D#awscli2",
+      "source": "nixpkg"
+    },
     "curl": {
       "resolved": "github:NixOS/nixpkgs/13043924aaa7375ce482ebe2494338e058282925?narHash=sha256-nwASzrRDD1JBEu%2Fo8ekKYEXm%2FoJW6EMCzCRdrwcLe90%3D#curl",
       "source": "nixpkg"

@@ -10,7 +10,8 @@
     "tmux",
     "htop",
     "go-task",
-    "devpod@latest"
+    "devpod@latest",
+    "awscli2"
   ],
   "shell": {
     "init_hook": [

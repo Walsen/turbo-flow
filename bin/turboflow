@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# =============================================================================
+# TurboFlow — Docker launcher with tmux workspace
+#
+# Usage:
+#   turboflow strands    # Strands SDK backend (Python, native Bedrock)
+#   turboflow claude     # Claude Code CLI backend (original)
+#   turboflow            # defaults to strands
+#
+# What it does:
+#   1. Starts the Docker container (builds if needed)
+#   2. Installs Python adapter deps (first run only)
+#   3. Launches a tmux workspace with the chosen backend
+# =============================================================================
+set -euo pipefail
+
+BACKEND="${1:-strands}"
+COMPOSE_FILE="$(cd "$(dirname "$0")/.." && pwd)/docker-compose.yml"
+CONTAINER="turboflow-4.0"
+INIT_FLAG="/home/vscode/.turboflow-deps-installed"
+
+case "$BACKEND" in
+  strands|claude) ;;
+  *)
+    echo "Usage: turboflow [strands|claude]"
+    echo "  strands  — Strands Agents SDK (default, native Bedrock)"
+    echo "  claude   — Claude Code CLI (interactive terminal)"
+    exit 1
+    ;;
+esac
+
+echo "🚀 TurboFlow — starting with $BACKEND backend..."
+
+# ── 1. Ensure container is running ──────────────────────────────────────
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
+  echo "   Starting container..."
+  docker compose -f "$COMPOSE_FILE" up -d --build 2>&1 | tail -3
+fi
+
+# ── 2. Install Python adapter deps (once, persisted via pip --user) ─────
+docker compose -f "$COMPOSE_FILE" exec -T turboflow bash -c "
+  if [ ! -f $INIT_FLAG ]; then
+    echo '   Installing TurboFlow adapter...'
+    pip3 install --user '/workspace/agent-adapter/python[strands]' --quiet 2>&1
+    touch $INIT_FLAG
+    echo '   ✓ Dependencies installed'
+  fi
+"
+
+# ── 3. Launch tmux workspace ────────────────────────────────────────────
+docker compose -f "$COMPOSE_FILE" exec \
+  -e TURBOFLOW_AGENT_BACKEND="$BACKEND" \
+  -e CLAUDE_CODE_USE_BEDROCK="${CLAUDE_CODE_USE_BEDROCK:-1}" \
+  -e AWS_REGION="${AWS_REGION:-us-east-1}" \
+  -e AWS_PROFILE="${AWS_PROFILE:-}" \
+  turboflow bash -c "
+    export TURBOFLOW_AGENT_BACKEND=$BACKEND
+    export WORKSPACE_FOLDER=/workspace
+
+    # Kill stale session
+    tmux kill-session -t turboflow 2>/dev/null || true
+
+    # Create session
+    tmux new-session -d -s turboflow -n 'agent' -c /workspace
+
+    # ── Window 0: Main agent window ──
+    if [ '$BACKEND' = 'claude' ]; then
+      tmux send-keys -t turboflow:0 'echo \"=== TurboFlow (Claude Code CLI) ===\"' C-m
+      tmux send-keys -t turboflow:0 'echo \"Run: claude \\\"your prompt\\\"\"' C-m
+      tmux send-keys -t turboflow:0 'echo \"Or interactive: claude\"' C-m
+    else
+      tmux send-keys -t turboflow:0 'echo \"=== TurboFlow (Strands Agents) ===\"' C-m
+      tmux send-keys -t turboflow:0 'echo \"Run: tf --local \\\"your prompt\\\"\"' C-m
+      tmux send-keys -t turboflow:0 'echo \"Team: tf --local --team feature \\\"your prompt\\\"\"' C-m
+    fi
+
+    # ── Window 1: Second agent ──
+    tmux new-window -t turboflow:1 -n 'agent-2' -c /workspace
+    tmux send-keys -t turboflow:1 'echo \"=== Agent Window 2 ===\"' C-m
+
+    # ── Window 2: Status / monitoring ──
+    tmux new-window -t turboflow:2 -n 'status' -c /workspace
+    tmux send-keys -t turboflow:2 'tf status 2>/dev/null || echo \"Run: tf status\"' C-m
+
+    # ── Window 3: htop ──
+    tmux new-window -t turboflow:3 -n 'htop' -c /workspace
+    tmux send-keys -t turboflow:3 'htop' C-m
+
+    # Settings
+    tmux set-option -g history-limit 50000
+    tmux set-option -g mouse on
+    tmux set-window-option -g mode-keys vi
+
+    # Focus first window
+    tmux select-window -t turboflow:0
+
+    # Attach
+    tmux attach-session -t turboflow
+  "

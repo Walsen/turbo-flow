@@ -63,11 +63,14 @@ def create_model(tier: ModelTier | str = ModelTier.SONNET) -> Any:
     is_bedrock = os.environ.get("CLAUDE_CODE_USE_BEDROCK") == "1"
 
     if is_bedrock:
+        import boto3
         from strands.models.bedrock import BedrockModel
 
         region = os.environ.get("AWS_REGION", "us-east-1")
-        log.debug("Creating Bedrock model: %s (region: %s)", model_id, region)
-        return BedrockModel(model_id=model_id, region_name=region)
+        profile = os.environ.get("AWS_PROFILE")
+        session = boto3.Session(profile_name=profile, region_name=region)
+        log.debug("Creating Bedrock model: %s (region: %s, profile: %s)", model_id, region, profile)
+        return BedrockModel(model_id=model_id, boto_session=session)
 
     if os.environ.get("ANTHROPIC_API_KEY"):
         from strands.models.anthropic import AnthropicModel
@@ -82,10 +85,13 @@ def create_model(tier: ModelTier | str = ModelTier.SONNET) -> Any:
         return OpenAIModel(model_id=model_id)
 
     # Default to Bedrock
+    import boto3
     from strands.models.bedrock import BedrockModel
 
     region = os.environ.get("AWS_REGION", "us-east-1")
-    return BedrockModel(model_id=model_id, region_name=region)
+    profile = os.environ.get("AWS_PROFILE")
+    session = boto3.Session(profile_name=profile, region_name=region)
+    return BedrockModel(model_id=model_id, boto_session=session)
 
 
 # ── Automatic tier selection ─────────────────────────────────────────────

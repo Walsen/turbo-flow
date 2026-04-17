@@ -33,11 +33,14 @@ services:
       # Option B: AWS Bedrock (set CLAUDE_CODE_USE_BEDROCK=1 in .env)
       - CLAUDE_CODE_USE_BEDROCK=${CLAUDE_CODE_USE_BEDROCK:-}
       - AWS_REGION=${AWS_REGION:-us-east-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
       - AWS_PROFILE=${AWS_PROFILE:-}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK:-}
+      # Option C: Explicit AWS credentials (static keys or assumed-role)
+      # Only set these if NOT using SSO profiles. Empty values interfere
+      # with botocore's credential chain and break SSO/profile resolution.
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      # - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
       # Model pins (Bedrock cross-region inference profiles)
       - ANTHROPIC_DEFAULT_OPUS_MODEL=${ANTHROPIC_DEFAULT_OPUS_MODEL:-}
       - ANTHROPIC_DEFAULT_SONNET_MODEL=${ANTHROPIC_DEFAULT_SONNET_MODEL:-}
@@ -63,7 +66,11 @@ services:
       # - ~/.gitconfig:/home/vscode/.gitconfig:ro
 
       # Mount AWS credentials for Bedrock (SSO session, config, etc.)
-      - ~/.aws:/home/vscode/.aws:ro
+      # NOTE: rw is required because botocore writes temporary files to
+      # ~/.aws/sso/cache/ during SSO token refresh. With :ro the credential
+      # resolution fails on macOS (EROFS). The container only writes to the
+      # SSO cache directory — config files are not modified.
+      - ~/.aws:/home/vscode/.aws
     ports:
       - "3000:3000"   # Dev server
       - "8080:8080"   # GitNexus web UI
